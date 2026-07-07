@@ -30,15 +30,6 @@ bool readRegisterByte(TwoWire &bus, uint8_t address, uint8_t reg, uint8_t &value
     return true;
 }
 
-#if defined T_DECK
-bool isBQ27220(TwoWire &bus, uint8_t address)
-{
-    uint8_t value = 0;
-    // Mirrors firmware scanner logic: non-zero at reg 0x04 indicates BQ27220.
-    return readRegisterByte(bus, address, 0x04, value) && value != 0;
-}
-#endif
-
 bool isTCA8418(TwoWire &bus, uint8_t address)
 {
     uint8_t value = 0;
@@ -122,7 +113,7 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
     }
 #endif
 
-`#if` WIRE_INTERFACES_COUNT >= 2
+#if WIRE_INTERFACES_COUNT >= 2
     if (driver == nullptr) {
         ILOG_DEBUG("I2CKeyboardScanner scanning bus 1 ...");
         for (uint8_t i = 0; i < sizeof(i2cKeyboards_bus1); i++) {
@@ -134,9 +125,9 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
                     driver = new CardKBInputDriver(address, Wire1);
                     break;
                 case SCAN_TM9_KB_ADDR:
-`#ifdef` HAS_STC8H_KB
+#ifdef HAS_STC8H_KB
                     driver = new STC8HKeyboardInputDriver(address, Wire1);
-`#endif`
+#endif
                     break;
                 default:
                     break;
@@ -147,7 +138,7 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
             }
         }
     }
-`#endif`
+#endif
 
     if (I2CKeyboardInputDriver::getI2CKeyboardList().empty()) {
         ILOG_DEBUG("No I2C keyboards found");
