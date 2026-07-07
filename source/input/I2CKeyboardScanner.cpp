@@ -122,27 +122,32 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
     }
 #endif
 
-#if WIRE_INTERFACES_COUNT >= 2
-    ILOG_DEBUG("I2CKeyboardScanner scanning bus 1 ...");
-    for (uint8_t i = 0; i < sizeof(i2cKeyboards_bus1); i++) {
-        uint8_t address = i2cKeyboards_bus1[i];
-        Wire1.beginTransmission(address);
-        if (Wire1.endTransmission() == 0) {
-            switch (address) {
-            case SCAN_CARDKB_ADDR:
-                driver = new CardKBInputDriver(address, Wire1);
-                break;
-            case SCAN_TM9_KB_ADDR:
-#ifdef HAS_STC8H_KB
-                driver = new STC8HKeyboardInputDriver(address, Wire1);
-#endif
-                break;
-            default:
+`#if` WIRE_INTERFACES_COUNT >= 2
+    if (driver == nullptr) {
+        ILOG_DEBUG("I2CKeyboardScanner scanning bus 1 ...");
+        for (uint8_t i = 0; i < sizeof(i2cKeyboards_bus1); i++) {
+            uint8_t address = i2cKeyboards_bus1[i];
+            Wire1.beginTransmission(address);
+            if (Wire1.endTransmission() == 0) {
+                switch (address) {
+                case SCAN_CARDKB_ADDR:
+                    driver = new CardKBInputDriver(address, Wire1);
+                    break;
+                case SCAN_TM9_KB_ADDR:
+`#ifdef` HAS_STC8H_KB
+                    driver = new STC8HKeyboardInputDriver(address, Wire1);
+`#endif`
+                    break;
+                default:
+                    break;
+                }
+            }
+            if (driver != nullptr) {
                 break;
             }
         }
     }
-#endif
+`#endif`
 
     if (I2CKeyboardInputDriver::getI2CKeyboardList().empty()) {
         ILOG_DEBUG("No I2C keyboards found");
