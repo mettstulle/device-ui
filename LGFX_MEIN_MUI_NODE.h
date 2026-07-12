@@ -5,7 +5,34 @@
 #include <LovyanGFX.hpp>
 
 #ifndef SPI_FREQUENCY
-#define SPI_FREQUENCY 40000000   // ILI9488 läuft meist stabiler bei 40MHz als bei 80MHz
+#define SPI_FREQUENCY 40000000
+#endif
+#ifndef LGFX_PIN_SCK
+#define LGFX_PIN_SCK 39
+#endif
+#ifndef LGFX_PIN_MOSI
+#define LGFX_PIN_MOSI 40
+#endif
+#ifndef LGFX_PIN_MISO
+#define LGFX_PIN_MISO 41
+#endif
+#ifndef LGFX_PIN_DC
+#define LGFX_PIN_DC 42
+#endif
+#ifndef LGFX_PIN_CS
+#define LGFX_PIN_CS 2
+#endif
+#ifndef LGFX_PIN_RST
+#define LGFX_PIN_RST -1
+#endif
+#ifndef LGFX_PIN_BL
+#define LGFX_PIN_BL 1
+#endif
+#ifndef TOUCH_CS_PIN
+#define TOUCH_CS_PIN 4
+#endif
+#ifndef TOUCH_INT_PIN
+#define TOUCH_INT_PIN 5
 #endif
 
 class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
@@ -41,18 +68,18 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.spi_3wire   = false;
             cfg.use_lock    = true;
             cfg.dma_channel = SPI_DMA_CH_AUTO;
-            cfg.pin_sclk    = 39;
-            cfg.pin_mosi    = 40;
-            cfg.pin_miso    = 41;
-            cfg.pin_dc      = 42;
+            cfg.pin_sclk    = LGFX_PIN_SCK;
+            cfg.pin_mosi    = LGFX_PIN_MOSI;
+            cfg.pin_miso    = LGFX_PIN_MISO;
+            cfg.pin_dc      = LGFX_PIN_DC;
             _bus_instance.config(cfg);
             _panel_instance.setBus(&_bus_instance);
         }
 
         { // ===== Display-Panel (ILI9488) =====
             auto cfg = _panel_instance.config();
-            cfg.pin_cs   = 2;
-            cfg.pin_rst  = -1;   // kein eigener Reset-Pin verdrahtet -> Software-Reset
+            cfg.pin_cs   = LGFX_PIN_CS;
+            cfg.pin_rst  = LGFX_PIN_RST;
             cfg.pin_busy = -1;
 
             cfg.panel_width   = screenHeight; // LovyanGFX erwartet die native (Portrait-)Maße hier
@@ -70,7 +97,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
 
         { // ===== Backlight =====
             auto cfg = _light_instance.config();
-            cfg.pin_bl      = 1;
+            cfg.pin_bl      = LGFX_PIN_BL;
             cfg.invert      = false;
             cfg.freq        = 44100;
             cfg.pwm_channel = 7;
@@ -80,8 +107,8 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
 
         { // ===== Touch (XPT2046, resistiv, SPI – am selben Bus wie das Display) =====
             auto cfg = _touch_instance.config();
-            cfg.pin_cs   = 4;
-            cfg.pin_int  = 5;
+            cfg.pin_cs   = TOUCH_CS_PIN;
+            cfg.pin_int  = TOUCH_INT_PIN;
             cfg.bus_shared = true;
             cfg.spi_host = SPI2_HOST;
             cfg.freq     = 2500000;
