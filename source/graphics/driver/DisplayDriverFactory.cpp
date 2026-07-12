@@ -75,6 +75,9 @@
 #ifdef HELTEC_VISION_MASTER_T190
 #include "graphics/LGFX/LGFX_VISION_MASTER_T190.h"
 #endif
+#ifdef MEIN_MUI_NODE
+#include "graphics/LGFX/LGFX_MEIN_MUI_NODE.h"
+#endif
 #ifdef NODEMCU_32S
 #include "graphics/LGFX/LGFX_ESPILI9341XPT2046.h"
 #endif
