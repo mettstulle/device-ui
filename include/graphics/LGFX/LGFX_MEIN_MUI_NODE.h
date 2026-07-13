@@ -82,8 +82,8 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.pin_rst  = LGFX_PIN_RST;
             cfg.pin_busy = -1;
 
-            cfg.panel_width   = screenHeight; // LovyanGFX erwartet die native (Portrait-)Maße hier
-            cfg.panel_height  = screenWidth;
+            cfg.panel_width   = screenWidth; // LovyanGFX erwartet die native (Portrait-)Maße hier
+            cfg.panel_height  = screenHeight;
             cfg.offset_x      = 0;
             cfg.offset_y      = 0;
             cfg.offset_rotation = 3;  // 1 = Landscape; bei falscher Ausrichtung 0/2/3 durchprobieren
