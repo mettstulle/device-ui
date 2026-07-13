@@ -86,7 +86,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.panel_height  = screenWidth;
             cfg.offset_x      = 0;
             cfg.offset_y      = 0;
-            cfg.offset_rotation = 3;  // 1 = Landscape; bei falscher Ausrichtung 0/2/3 durchprobieren
+            cfg.offset_rotation = 2;  // 1 = Landscape; bei falscher Ausrichtung 0/2/3 durchprobieren
             cfg.readable      = true;
             cfg.invert        = false; // bei Farbfehlern (z. B. Blau/Rot vertauscht wirkende Bilder) auf true testen
             cfg.rgb_order     = false; // bei vertauschten Farben auf true testen
