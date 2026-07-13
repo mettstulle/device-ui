@@ -23,7 +23,7 @@
 #define LGFX_PIN_CS 2
 #endif
 #ifndef LGFX_PIN_RST
-#define LGFX_PIN_RST -1
+#define LGFX_PIN_RST 38
 #endif
 #ifndef LGFX_PIN_BL
 #define LGFX_PIN_BL 1
@@ -61,7 +61,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
     {
         { // ===== SPI-Bus fürs Display (eigener Bus, getrennt vom LoRa-SPI) =====
             auto cfg = _bus_instance.config();
-            cfg.spi_host    = SPI2_HOST;
+            cfg.spi_host    = SPI3_HOST;
             cfg.spi_mode    = 0;
             cfg.freq_write  = SPI_FREQUENCY;
             cfg.freq_read   = 16000000;
@@ -110,7 +110,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.pin_cs   = TOUCH_CS_PIN;
             cfg.pin_int  = TOUCH_INT_PIN;
             cfg.bus_shared = true;
-            cfg.spi_host = SPI2_HOST;
+            cfg.spi_host = SPI3_HOST;
             cfg.freq     = 2500000;
             cfg.x_min = 0; cfg.x_max = 4095;   // Rohwerte; nach Kalibrierung in Schritt 6 ggf. anpassen
             cfg.y_min = 0; cfg.y_max = 4095;
