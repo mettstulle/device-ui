@@ -295,6 +295,7 @@ class LGFX_GENERIC : public lgfx::LGFX_Device
             cfg.pin_sclk = LGFX_TOUCH_CLK;
             cfg.pin_mosi = LGFX_TOUCH_DIN;
             cfg.pin_miso = LGFX_TOUCH_DO;
+            cfg.bus_shared = true;
 #else
             cfg.pin_cs = LGFX_TOUCH_CS;
 #endif
