@@ -75,6 +75,9 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
     driver = new TDeckProKeyboardInputDriver(SCAN_TCA8418_KB_ADDR);
 #elif defined(ELECROW_ThinkNode_M9)
     driver = new TM9KeyboardInputDriver(SCAN_TM9_KB_ADDR);
+#elif defined(MEIN_MUI_NODE)
+    // No I2C keyboard; default ESP32-S3 Wire pins (8/9) are used by LLCC68 DIO1/RESET.
+    ILOG_DEBUG("I2CKeyboardScanner: skipping bus scan for MEIN_MUI_NODE");
 #else
     ILOG_DEBUG("I2CKeyboardScanner scanning bus 0 ...");
     for (uint8_t i = 0; i < sizeof(i2cKeyboards_bus0); i++) {
@@ -113,7 +116,7 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
     }
 #endif
 
-#if WIRE_INTERFACES_COUNT >= 2
+#if WIRE_INTERFACES_COUNT >= 2 && !defined(MEIN_MUI_NODE)
     if (driver == nullptr) {
         ILOG_DEBUG("I2CKeyboardScanner scanning bus 1 ...");
         for (uint8_t i = 0; i < sizeof(i2cKeyboards_bus1); i++) {
