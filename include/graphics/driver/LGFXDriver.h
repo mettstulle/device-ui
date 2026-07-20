@@ -10,7 +10,8 @@
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "esp_task_wdt.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #endif
 
 constexpr uint32_t defaultLongPressTime = 700; // ms until long press is detected (lvgl default is 400)
@@ -182,7 +183,11 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
 template <class LGFX> void LGFXDriver<LGFX>::display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
-    esp_task_wdt_reset();
+    // Yield so loopTask on the other core can run (WDT was firing while CPU0 stayed in tft).
+    static uint16_t flush_count = 0;
+    if ((++flush_count & 0x0F) == 0) {
+        vTaskDelay(1);
+    }
 #endif
     uint32_t w = lv_area_get_width(area);
     uint32_t h = lv_area_get_height(area);
