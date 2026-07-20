@@ -55,34 +55,35 @@ board_build.partitions = default_16MB.csv
 board_build.f_flash = 80000000L
 custom_meshtastic_has_mui = true
 
+; Note: every continuation line under build_flags must stay indented.
+; Avoid bare "-D FOO" and ";" comments inside the multiline value (breaks PlatformIO on Windows).
 build_flags =
   ${esp32s3_base.build_flags}
   -I variants/esp32s3/mein-mui-node
-  -D MEIN_MUI_NODE
-  -D BOARD_HAS_PSRAM
-  -D ARDUINO_USB_CDC_ON_BOOT=1
-  -D HAS_SCREEN=0
-  -D HAS_TFT=1
-  -D HAS_MUI=1
-  -D USE_PACKET_API
-  -D USE_LOG_DEBUG
-  -D LOG_DEBUG_INC=\"DebugConfiguration.h\"
-  -D VIEW_320x240
-  -D DISPLAY_SET_RESOLUTION
-  -D LGFX_DRIVER=LGFX_MEIN_MUI_NODE
-  -D LGFX_CFG_DMA_CH=1
-  ; Optional pin overrides (defaults are already in LGFX_MEIN_MUI_NODE.h)
-  -D LGFX_PIN_SCK=39
-  -D LGFX_PIN_MOSI=40
-  -D LGFX_PIN_MISO=41
-  -D LGFX_PIN_DC=42
-  -D LGFX_PIN_CS=2
-  -D LGFX_PIN_RST=38
-  -D LGFX_PIN_BL=1
-  -D LGFX_TOUCH_CS=15
-  -D LGFX_TOUCH_INT=5
-  -D SPI_FREQUENCY=20000000
-  -D LGFX_OFFSET_ROTATION=1
+  -DMEIN_MUI_NODE=1
+  -DBOARD_HAS_PSRAM=1
+  -DARDUINO_USB_CDC_ON_BOOT=1
+  -DHAS_SCREEN=0
+  -DHAS_TFT=1
+  -DHAS_MUI=1
+  -DUSE_PACKET_API=1
+  -DUSE_LOG_DEBUG=1
+  -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
+  -DVIEW_320x240=1
+  -DDISPLAY_SET_RESOLUTION=1
+  -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
+  -DLGFX_CFG_DMA_CH=1
+  -DLGFX_PIN_SCK=39
+  -DLGFX_PIN_MOSI=40
+  -DLGFX_PIN_MISO=41
+  -DLGFX_PIN_DC=42
+  -DLGFX_PIN_CS=2
+  -DLGFX_PIN_RST=38
+  -DLGFX_PIN_BL=1
+  -DLGFX_TOUCH_CS=15
+  -DLGFX_TOUCH_INT=5
+  -DSPI_FREQUENCY=20000000
+  -DLGFX_OFFSET_ROTATION=1
 
 lib_deps =
   ${esp32s3_base.lib_deps}
