@@ -7,6 +7,9 @@
 #include "lvgl_private.h"
 #include "util/ILog.h"
 #include <functional>
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+#include "driver/gpio.h"
+#endif
 
 constexpr uint32_t defaultLongPressTime = 700; // ms until long press is detected (lvgl default is 400)
 constexpr uint32_t defaultGestureLimit = 10;   // x/y diff pixel until a swipe gesture is detected (lvgl default is 50)
