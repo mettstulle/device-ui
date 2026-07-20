@@ -61,6 +61,7 @@ build_flags =
   ${esp32s3_base.build_flags}
   -I variants/esp32s3/mein-mui-node
   -DMEIN_MUI_NODE=1
+  -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
   -DBOARD_HAS_PSRAM=1
   -DARDUINO_USB_CDC_ON_BOOT=1
   -DHAS_SCREEN=0
@@ -71,7 +72,6 @@ build_flags =
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
   -DVIEW_320x240=1
   -DDISPLAY_SET_RESOLUTION=1
-  -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
   -DLGFX_CFG_DMA_CH=1
   -DLGFX_PIN_SCK=39
   -DLGFX_PIN_MOSI=40
