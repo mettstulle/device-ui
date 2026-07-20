@@ -15,6 +15,7 @@
  *  -D LGFX_PANEL=ST7789
  *  -D LGFX_TOUCH=XPT2046
  *  -D LGFX_INVERT_COLOR=true
+  *  -D LGFX_CFG_HOST=SPI3_HOST
  *  -D LGFX_PIN_SCK=12
  *  -D LGFX_PIN_MOSI=15
  *  -D LGFX_PIN_MISO=16
@@ -27,6 +28,10 @@
  *  -D LGFX_TOUCH_CLK=12
  *  -D LGFX_TOUCH_DO=15
  *  -D LGFX_TOUCH_DIN=16
+ *
+ * Notes:
+ *  - Default LGFX_CFG_HOST is SPI3_HOST so ESP32-S3 LoRa (SPI2/FSPI) can stay separate.
+ *  - For XPT2046 on a shared SPI bus, set LGFX_PIN_MISO to the touch DO pin (not -1).
  */
 
 #define LGFX_USE_V1
@@ -223,14 +228,22 @@ class LGFX_GENERIC : public lgfx::LGFX_Device
             cfg.freq_read = 16000000;       // SPI clock when receiving
             cfg.spi_3wire = LGFX_SPI_3WIRE;
             cfg.use_lock = true;               // Set to true to use transaction locking
-            cfg.dma_channel = SPI_DMA_CH_AUTO; // SPI_DMA_CH_AUTO; // Set DMA channel
-                                               // to use (0=not use DMA / 1=1ch / 2=ch
-                                               // / SPI_DMA_CH_AUTO=auto setting)
-            cfg.pin_sclk = LGFX_PIN_SCK;       // Set SPI SCLK pin number
-            cfg.pin_mosi = LGFX_PIN_MOSI;      // Set SPI MOSI pin number
-            cfg.pin_miso = LGFX_PIN_MISO;      // Set SPI MISO pin number (-1 = disable)
-            cfg.pin_dc = LGFX_PIN_DC;          // Set SPI DC pin number (-1 = disable)
-
+#ifdef LGFX_CFG_DMA_CH
+            cfg.dma_channel = LGFX_CFG_DMA_CH;
+#else
+            cfg.dma_channel = SPI_DMA_CH_AUTO; // 0=off / 1=1ch / 2=2ch / SPI_DMA_CH_AUTO
+#endif
+            cfg.pin_sclk = LGFX_PIN_SCK;  // Set SPI SCLK pin number
+            cfg.pin_mosi = LGFX_PIN_MOSI; // Set SPI MOSI pin number
+            // Shared-bus resistive touch (XPT2046) needs bus MISO = touch DO.
+            // Using -1 here breaks touch even when LGFX_TOUCH_DO is set (LovyanGFX #434).
+#if defined(LGFX_TOUCH_DO) && (LGFX_TOUCH_DO >= 0) && (LGFX_PIN_MISO < 0)
+            cfg.pin_miso = LGFX_TOUCH_DO;
+#else
+            cfg.pin_miso = LGFX_PIN_MISO; // Set SPI MISO pin number (-1 = disable)
+#endif
+            cfg.pin_dc = LGFX_PIN_DC; // Set SPI DC pin number (-1 = disable)
+            
             _bus_instance.config(cfg);              // applies the set value to the bus.
             _panel_instance.setBus(&_bus_instance); // set the bus on the panel.
         }
