@@ -18,7 +18,12 @@
 #endif
 
 #ifndef ARCH_PORTDUINO
-#ifdef LGFX_DRIVER_TEMPLATE
+// Board-specific drivers first so leftover LGFX_DRIVER_TEMPLATE flags cannot win.
+#ifdef MEIN_MUI_NODE
+#include "graphics/LGFX/LGFX_MEIN_MUI_NODE.h"
+#undef LGFX_DRIVER
+#define LGFX_DRIVER LGFX_MEIN_MUI_NODE
+#elif defined(LGFX_DRIVER_TEMPLATE)
 #include "graphics/LGFX/LGFX_GENERIC.h"
 #endif
 #ifdef T_HMI
@@ -74,15 +79,6 @@
 #endif
 #ifdef HELTEC_VISION_MASTER_T190
 #include "graphics/LGFX/LGFX_VISION_MASTER_T190.h"
-#endif
-#ifdef MEIN_MUI_NODE
-#ifdef LGFX_DRIVER_TEMPLATE
-#error "MEIN_MUI_NODE: remove LGFX_DRIVER_TEMPLATE/LGFX_GENERIC; use -D LGFX_DRIVER=LGFX_MEIN_MUI_NODE (TFT on SPI3, LoRa on SPI2)"
-#endif
-#include "graphics/LGFX/LGFX_MEIN_MUI_NODE.h"
-#ifndef LGFX_DRIVER
-#define LGFX_DRIVER LGFX_MEIN_MUI_NODE
-#endif
 #endif
 #ifdef NODEMCU_32S
 #include "graphics/LGFX/LGFX_ESPILI9341XPT2046.h"

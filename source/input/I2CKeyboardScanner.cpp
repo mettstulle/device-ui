@@ -52,13 +52,15 @@ I2CKeyboardInputDriver *I2CKeyboardScanner::scan(void)
 {
     I2CKeyboardInputDriver *driver = nullptr;
 #ifndef ARCH_PORTDUINO
+#if !defined(MEIN_MUI_NODE)
     uint8_t i2cKeyboards_bus0[] = {SCAN_TCA8418_KB_ADDR, SCAN_CARDKB_ADDR, SCAN_BBQ10_KB_ADDR, SCAN_MPR121_KB_ADDR};
 #if WIRE_INTERFACES_COUNT >= 2
     uint8_t i2cKeyboards_bus1[] = {SCAN_CARDKB_ADDR, SCAN_TM9_KB_ADDR};
 #endif
+#endif
 
     // Reset I2C bus to clear any stuck state left by touch driver LovyanGFX operations
-#ifdef SCAN_I2C_BUS_RESET
+#if defined(SCAN_I2C_BUS_RESET) && !defined(MEIN_MUI_NODE)
     ILOG_DEBUG("Resetting I2C bus ...");
     Wire.end();
     delay(10);

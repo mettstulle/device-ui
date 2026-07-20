@@ -13,7 +13,7 @@ The Meshtastic logo + version string **is already MUI**. Leaving that screen mea
 1. **SPI host conflict** — LoRa uses SPI2 (`FSPI`). If the display is also configured on `SPI2_HOST` with different pins, LoRa init rebinds the peripheral and the TFT freezes on the last frame (logo), while the radio keeps working in the log.
 2. **Touch MISO = -1** — For shared-bus XPT2046, the display bus `pin_miso` must be the touch `T_DO` pin (GPIO 41). `-1` breaks touch and can destabilize the shared bus.
 3. **I2C on GPIO 8/9** — ESP32-S3 Arduino defaults Wire to SDA=8 / SCL=9, but those pins are LLCC68 `DIO1` / `RESET`. Remap I2C away from them.
-4. **Wrong LGFX driver selection** — Do not combine `LGFX_DRIVER_TEMPLATE`/`LGFX_GENERIC` with `MEIN_MUI_NODE`. Use `LGFX_DRIVER=LGFX_MEIN_MUI_NODE`.
+4. **Wrong LGFX driver selection** — Prefer only `-DMEIN_MUI_NODE=1`. That forces `LGFX_MEIN_MUI_NODE` on SPI3. Leftover `LGFX_DRIVER_TEMPLATE` / `LGFX_GENERIC` flags are ignored when `MEIN_MUI_NODE` is set, but should still be removed from `platformio.ini`.
 
 ## Firmware `variants/esp32s3/mein-mui-node/variant.h`
 
