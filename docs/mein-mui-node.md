@@ -41,9 +41,13 @@ On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected,
 
 ## Firmware `platformio.ini`
 
-Use Meshtastic's DIY N16R8 board (`boards/my-esp32s3-diy-oled.json`), not stock
-`esp32-s3-devkitc-1`. Ignore **both** Arduino BLE names, exclude `libpax`, and
-pin NimBLE explicitly.
+Your firmware tree is **develop / pioarduino (Arduino 3.x)**: Bluetooth uses the
+framework `BLE` library + IDF NimBLE (`BLE2904.h`), **not** `h2zero/NimBLE-Arduino`.
+
+If `esp_bt.h` / `host/ble_uuid.h` are missing while compiling `libraries/BLE/...`,
+the board build is not picking up Meshtastic's `custom_sdkconfig` BT bits. For the
+first MUI bring-up, **exclude Bluetooth** so display/LoRa can be tested over USB
+serial; re-enable BLE later after a working image.
 
 ```ini
 [env:mein-mui-node]
@@ -60,6 +64,9 @@ custom_meshtastic_has_mui = true
 build_unflags =
   ${esp32s3_base.build_unflags}
   -DARDUINO_USB_MODE=1
+  -DARDUINO_USB_MODE=0
+  -DARDUINO_USB_CDC_ON_BOOT=1
+  -DARDUINO_USB_CDC_ON_BOOT
 
 build_flags =
   ${esp32s3_base.build_flags}
@@ -68,8 +75,7 @@ build_flags =
   -DMEIN_MUI_NODE=1
   -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
   -DBOARD_HAS_PSRAM=1
-  -DARDUINO_USB_CDC_ON_BOOT=1
-  -DARDUINO_USB_MODE=0
+  -DARDUINO_USB_CDC_ON_BOOT=0
   -DHAS_SCREEN=0
   -DHAS_TFT=1
   -DHAS_MUI=1
@@ -78,7 +84,14 @@ build_flags =
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
   -DVIEW_320x240
   -DDISPLAY_SET_RESOLUTION=1
+  -DRAM_SIZE=6144
+  -DLV_CACHE_DEF_SIZE=2097152
+  -DMESHTASTIC_EXCLUDE_WEBSERVER=1
+  -DMESHTASTIC_EXCLUDE_CANNEDMESSAGES=1
   -DMESHTASTIC_EXCLUDE_PAXCOUNTER=1
+  -DMESHTASTIC_EXCLUDE_BLUETOOTH=1
+  -DRADIOLIB_SPI_PARANOID=0
+  -DMEIN_MUI_NO_TOUCH=1
   -DLGFX_PIN_SCK=21
   -DLGFX_PIN_MOSI=16
   -DLGFX_PIN_MISO=4
@@ -87,6 +100,7 @@ build_flags =
   -DLGFX_PIN_RST=38
   -DLGFX_PIN_BL=1
   -DLGFX_TOUCH_CS=15
+  -DLGFX_TOUCH_INT=-1
   -DLGFX_SPI_FREQUENCY=10000000
   -DLGFX_OFFSET_ROTATION=1
 
@@ -95,32 +109,31 @@ lib_deps =
   ; DO NOT use ${device-ui_base.lib_deps} — official device-ui wins on name clash
   https://github.com/mettstulle/device-ui/archive/2444b5ba114e38ee9520870bcf057a46171fee2e.zip
   lovyan03/LovyanGFX@1.2.24
-  h2zero/NimBLE-Arduino@1.4.3
+  ; DO NOT add h2zero/NimBLE-Arduino on develop/pioarduino
 
-; Framework dir is "BLE"; package name is "ESP32 BLE Arduino". Ignore BOTH.
 lib_ignore =
   ${esp32s3_base.lib_ignore}
-  ESP32 BLE Arduino
-  BLE
   libpax
+  BLE
+  ESP32 BLE Arduino
 ```
 
-### Critical: Arduino BLE still compiling (`libraries/BLE/...`)
-
-If the log still shows `framework-arduinoespressif32/libraries/BLE/BLEAddress.cpp`,
-`lib_ignore` missed the framework folder name. You need **both** `ESP32 BLE Arduino`
-and `BLE`, plus explicit `h2zero/NimBLE-Arduino@1.4.3` in `lib_deps`.
-
-Also set `board = my-esp32s3-diy-oled` (N16R8 DevKit clone already in firmware).
+With `-DMESHTASTIC_EXCLUDE_BLUETOOTH=1`, also ignore `BLE` so the framework library
+is not compiled (it needs `esp_bt.h`). Phone pairing will not work until BT is
+re-enabled; use USB serial / CLI for now.
 
 ```powershell
-Remove-Item -Recurse -Force .pio\libdeps\mein-mui-node, .pio\build\mein-mui-node -ErrorAction SilentlyContinue
-pio pkg install -e mein-mui-node
-Get-ChildItem .pio\libdeps\mein-mui-node | Select-String -Pattern "NimBLE|libpax|device-ui"
+Remove-Item -Recurse -Force .pio\build\mein-mui-node -ErrorAction SilentlyContinue
 pio run -e mein-mui-node
 ```
 
-Expect `NimBLE-Arduino` present, no `libpax`, and **no** compile steps under `libraries/BLE/`.
+### Later: re-enable Bluetooth
+
+1. Remove `-DMESHTASTIC_EXCLUDE_BLUETOOTH=1`
+2. Remove `BLE` / `ESP32 BLE Arduino` from `lib_ignore`
+3. Full clean so `custom_sdkconfig` regenerates: `pio run -e mein-mui-node -t fullclean`
+4. Rebuild. If `esp_bt.h` is still missing, BT include paths are still wrong for this
+   board — compare with a known-good env like `heltec-v3` on the same firmware tree.
 
 ### Critical: force PlatformIO to actually install the fork
 
