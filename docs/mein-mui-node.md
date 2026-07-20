@@ -135,7 +135,29 @@ pio run -e mein-mui-node
 4. Rebuild. If `esp_bt.h` is still missing, BT include paths are still wrong for this
    board — compare with a known-good env like `heltec-v3` on the same firmware tree.
 
-### Critical: force PlatformIO to actually install the fork
+### Touch calibration (XPT2046 / HR2046)
+
+Wake-on-touch can work while menu hits miss — that means detection works but
+coordinates are wrong. Calibrate once:
+
+```ini
+  -DMEIN_MUI_ENABLE_TOUCH=1
+  -DCALIBRATE_TOUCH=1
+  -DLGFX_TOUCH_SPI_FREQ=1000000
+```
+
+Flash, then tap the arrow tips on screen. UART prints:
+
+```
+Touchscreen calibration parameters: {a, b, c, d, e, f, g, h}
+```
+
+Paste those eight values into `LGFXDriver.h` under `#elif defined(MEIN_MUI_NODE)`,
+rebuild with `-DCALIBRATE_TOUCH=0` (or omit the flag and keep the hardcoded array
+via a small local patch), and menu hits should line up.
+
+If axes feel swapped/mirrored, try `-DLGFX_TOUCH_OFFSET_ROTATION=0` (or 2/3)
+while keeping panel `-DLGFX_OFFSET_ROTATION=1`.
 
 `custom_meshtastic_has_mui = true` only sets flasher metadata. It does **not** pull `device-ui`.
 
