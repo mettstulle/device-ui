@@ -41,24 +41,35 @@ On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected,
 
 ## Firmware `platformio.ini`
 
+Use Meshtastic's DIY N16R8 board (`boards/my-esp32s3-diy-oled.json`), not stock
+`esp32-s3-devkitc-1`. Ignore **both** Arduino BLE names, exclude `libpax`, and
+pin NimBLE explicitly.
+
 ```ini
 [env:mein-mui-node]
 extends = esp32s3_base
-board = esp32-s3-devkitc-1
+board = my-esp32s3-diy-oled
 board_build.arduino.memory_type = qio_opi
 board_build.psram_type = opi
 board_upload.flash_size = 16MB
 board_build.partitions = default_16MB.csv
 board_build.f_flash = 80000000L
+upload_protocol = esptool
 custom_meshtastic_has_mui = true
+
+build_unflags =
+  ${esp32s3_base.build_unflags}
+  -DARDUINO_USB_MODE=1
 
 build_flags =
   ${esp32s3_base.build_flags}
   -I variants/esp32s3/mein-mui-node
+  -DPRIVATE_HW=1
   -DMEIN_MUI_NODE=1
   -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
   -DBOARD_HAS_PSRAM=1
   -DARDUINO_USB_CDC_ON_BOOT=1
+  -DARDUINO_USB_MODE=0
   -DHAS_SCREEN=0
   -DHAS_TFT=1
   -DHAS_MUI=1
@@ -81,39 +92,35 @@ build_flags =
 
 lib_deps =
   ${esp32s3_base.lib_deps}
-  ; DO NOT use ${device-ui_base.lib_deps} here — that pins official meshtastic/device-ui
-  ; and PlatformIO will ignore a second ZIP with the same library name.
+  ; DO NOT use ${device-ui_base.lib_deps} — official device-ui wins on name clash
   https://github.com/mettstulle/device-ui/archive/2444b5ba114e38ee9520870bcf057a46171fee2e.zip
   lovyan03/LovyanGFX@1.2.24
+  h2zero/NimBLE-Arduino@1.4.3
 
-; Meshtastic uses NimBLE. Ignore only the Arduino BLE stack name.
-; Do NOT add a bare "BLE" entry — it can also suppress NimBLE-Arduino.
-; libpax needs esp_bt.h; exclude it on stock esp32-s3-devkitc-1 DIY builds.
+; Framework dir is "BLE"; package name is "ESP32 BLE Arduino". Ignore BOTH.
 lib_ignore =
   ${esp32s3_base.lib_ignore}
   ESP32 BLE Arduino
+  BLE
   libpax
 ```
 
-### Critical: ignore Arduino BLE (esp_bt.h / host/ble_uuid.h)
+### Critical: Arduino BLE still compiling (`libraries/BLE/...`)
 
-If the build fails compiling `framework-arduinoespressif32/libraries/BLE/...`, keep `ESP32 BLE Arduino` in `lib_ignore` (as above). Do **not** add a bare `BLE` ignore — that can drop `NimBLE-Arduino` from libdeps.
+If the log still shows `framework-arduinoespressif32/libraries/BLE/BLEAddress.cpp`,
+`lib_ignore` missed the framework folder name. You need **both** `ESP32 BLE Arduino`
+and `BLE`, plus explicit `h2zero/NimBLE-Arduino@1.4.3` in `lib_deps`.
 
-### Critical: libpax / missing esp_bt.h
-
-If compilation dies in `libpax/.../blescan.cpp` with `esp_bt.h: No such file`, keep:
-- `-DMESHTASTIC_EXCLUDE_PAXCOUNTER=1` in `build_flags`
-- `libpax` in `lib_ignore`
-
-Then reinstall deps and confirm NimBLE is present:
+Also set `board = my-esp32s3-diy-oled` (N16R8 DevKit clone already in firmware).
 
 ```powershell
 Remove-Item -Recurse -Force .pio\libdeps\mein-mui-node, .pio\build\mein-mui-node -ErrorAction SilentlyContinue
 pio pkg install -e mein-mui-node
-Get-ChildItem .pio\libdeps\mein-mui-node | Select-String -Pattern "NimBLE|libpax|device-ui|Crypto"
+Get-ChildItem .pio\libdeps\mein-mui-node | Select-String -Pattern "NimBLE|libpax|device-ui"
+pio run -e mein-mui-node
 ```
 
-You want `NimBLE-Arduino` present and `libpax` absent.
+Expect `NimBLE-Arduino` present, no `libpax`, and **no** compile steps under `libraries/BLE/`.
 
 ### Critical: force PlatformIO to actually install the fork
 
