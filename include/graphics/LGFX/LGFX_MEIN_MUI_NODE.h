@@ -100,7 +100,8 @@
 #endif
 
 #ifndef MEIN_MUI_ENABLE_TOUCH
-#define MEIN_MUI_NO_TOUCH
+#undef MEIN_MUI_NO_TOUCH
+#define MEIN_MUI_NO_TOUCH 1
 #endif
 
 class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device

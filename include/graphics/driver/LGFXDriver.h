@@ -12,6 +12,11 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+// Default: no touch. Opt in with -DMEIN_MUI_ENABLE_TOUCH=1
+#if !defined(MEIN_MUI_ENABLE_TOUCH)
+#undef MEIN_MUI_NO_TOUCH
+#define MEIN_MUI_NO_TOUCH 1
+#endif
 #endif
 
 constexpr uint32_t defaultLongPressTime = 700; // ms until long press is detected (lvgl default is 400)
@@ -374,13 +379,12 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
     lgfx->setBrightness(defaultBrightness);
     lgfx->fillScreen(LGFX::color565(0x3D, 0xDA, 0x83));
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
-    ESP_LOGI("MEIN_MUI", "LGFX fillScreen done (touch %s)",
-#ifdef MEIN_MUI_NO_TOUCH
-             "disabled"
-#else
-             "enabled"
+    ESP_LOGI("MEIN_MUI", "LGFX fillScreen done (touch %s)", hasTouch() ? "enabled" : "disabled");
 #endif
-    );
+
+#if defined(MEIN_MUI_NO_TOUCH)
+    // Ensure no touch device remains attached even if a prior build flag enabled it.
+    // (hasTouch() already false when setTouch was skipped in LGFX_MEIN_MUI_NODE.)
 #endif
 
     if (hasTouch()) {
