@@ -1,26 +1,19 @@
-# Mein MUI Node (ESP32-S3-N16R8 + LLCC68 + ILI9488/XPT2046)
+# Mein MUI Node (ESP32-S3-N16R8 + SX1262 + ILI9488/HR2046)
 
 Custom Meshtastic MUI board using:
 
-- ESP32-S3 DevKit N16R8 (16 MB flash, 8 MB OPI PSRAM)
-- LLCC68 LoRa (RadioLib SX126x-compatible) on SPI2
-- ILI9488 TFT + XPT2046 resistive touch on SPI3
+- ESP32-S3 DevKitC-1 N16R8 (16 MB flash, 8 MB OPI PSRAM)
+- DX-LR20 / E22-style SX1262 LoRa (`900M22S`) on SPI2
+- KMRTM35018-SPI 3.5" ILI9488 TFT + HR2046 (XPT2046-compatible) on SPI3
 
-## Why the UI stuck on the boot logo
+## Critical: do not use GPIO 39-42 for the TFT
 
-The Meshtastic logo + version string **is already MUI**. Leaving that screen means the full UI never becomes visible, usually because:
-
-1. **SPI host conflict** — LoRa uses SPI2 (`FSPI`). If the display is also configured on `SPI2_HOST` with different pins, LoRa init rebinds the peripheral and the TFT freezes on the last frame (logo), while the radio keeps working in the log.
-2. **Touch MISO = -1** — For shared-bus XPT2046, the display bus `pin_miso` must be the touch `T_DO` pin (GPIO 41). `-1` breaks touch and can destabilize the shared bus.
-3. **I2C on GPIO 8/9** — ESP32-S3 Arduino defaults Wire to SDA=8 / SCL=9, but those pins are LLCC68 `DIO1` / `RESET`. Remap I2C away from them.
-4. **Wrong LGFX driver selection** — Prefer only `-DMEIN_MUI_NODE=1`. That forces `LGFX_MEIN_MUI_NODE` on SPI3. Leftover `LGFX_DRIVER_TEMPLATE` / `LGFX_GENERIC` flags are ignored when `MEIN_MUI_NODE` is set, but should still be removed from `platformio.ini`.
+On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected, SPI there often wedges the `tft` task (`task_wdt`, `CPU 0: tft`).
 
 ## Firmware `variants/esp32s3/mein-mui-node/variant.h`
 
 ```cpp
-// ===== LoRa (LLCC68) =====
-// Without USE_LLCC68 / USE_SX1262 the firmware never probes a radio.
-#define USE_LLCC68
+#define USE_SX1262
 
 #define LORA_SCK 12
 #define LORA_MISO 13
@@ -34,24 +27,19 @@ The Meshtastic logo + version string **is already MUI**. Leaving that screen mea
 #define SX126X_RXEN 6
 #define SX126X_TXEN 14
 #define SX126X_MAX_POWER 22
-// No SX126X_DIO2_AS_RF_SWITCH — RXEN/TXEN do the RF switching.
-// No SX126X_DIO3_TCXO_VOLTAGE unless your module has a TCXO (many LLCC68/E220 use XTAL).
+#define SX126X_DIO3_TCXO_VOLTAGE 1.8
+#define TCXO_OPTIONAL
 
 #ifndef SPI_FREQUENCY
 #define SPI_FREQUENCY 40000000
 #endif
 
 #define BUTTON_PIN 0
-
-// Move I2C off LoRa IRQ/RESET (ESP32-S3 default Wire is often 8/9)
 #define I2C_SDA 17
 #define I2C_SCL 18
-
-// Do NOT `#define HAS_AXP192 0` / HAS_AXP2101 / HAS_PMU — `#ifdef` still enables PMU code.
-// Leave those macros completely undefined on this DevKit.
 ```
 
-## Firmware `platformio.ini` environment
+## Firmware `platformio.ini`
 
 ```ini
 [env:mein-mui-node]
@@ -64,8 +52,6 @@ board_build.partitions = default_16MB.csv
 board_build.f_flash = 80000000L
 custom_meshtastic_has_mui = true
 
-; Note: every continuation line under build_flags must stay indented.
-; Avoid bare "-D FOO" and ";" comments inside the multiline value (breaks PlatformIO on Windows).
 build_flags =
   ${esp32s3_base.build_flags}
   -I variants/esp32s3/mein-mui-node
@@ -81,15 +67,14 @@ build_flags =
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
   -DVIEW_320x240
   -DDISPLAY_SET_RESOLUTION=1
-  -DLGFX_PIN_SCK=39
-  -DLGFX_PIN_MOSI=40
-  -DLGFX_PIN_MISO=41
-  -DLGFX_PIN_DC=42
+  -DLGFX_PIN_SCK=21
+  -DLGFX_PIN_MOSI=16
+  -DLGFX_PIN_MISO=4
+  -DLGFX_PIN_DC=5
   -DLGFX_PIN_CS=2
   -DLGFX_PIN_RST=38
   -DLGFX_PIN_BL=1
   -DLGFX_TOUCH_CS=15
-  -DLGFX_TOUCH_INT=-1
   -DLGFX_SPI_FREQUENCY=10000000
   -DLGFX_OFFSET_ROTATION=1
 
@@ -98,33 +83,53 @@ lib_deps =
   lovyan03/LovyanGFX@1.2.24
 ```
 
-Point `lib_deps` device-ui at a revision that contains `LGFX_MEIN_MUI_NODE.h`.
+Pin a device-ui commit ZIP (branch ZIPs are cached aggressively by PlatformIO).
 
-## Pin map (from the DevKit pinout)
+## Wiring
 
-| Function | GPIO | Notes |
-|----------|------|-------|
-| LoRa SCK/MISO/MOSI/CS | 12/13/11/10 | SPI2 |
-| LoRa RESET/DIO1/BUSY | 9/8/7 | keep free from I2C/TFT |
-| LoRa RXEN/TXEN | 6/14 | external RF switch |
-| TFT SCK/MOSI/MISO | 39/40/41 | SPI3, MISO = touch DO |
-| TFT DC/CS/RST/BL | 42/2/38/1 | |
-| Touch CS/INT | 15/5 | shared SPI3 |
-| User button | 0 | BOOT |
-| I2C SDA/SCL | 17/18 | bypass away from 8/9 |
+### LoRa DX-PJ27 / DX-LR20
 
-## Checklist after flashing
+| Modul | ESP32 |
+|-------|-------|
+| VCC | 3V3 |
+| GND | GND |
+| NSS | 10 |
+| NRST | 9 |
+| MOSI | 11 |
+| SCK | 12 |
+| MISO | 13 |
+| DIO1 | 8 |
+| BUSY | 7 |
+| RXEN | 6 |
+| TXEN | 14 |
+| DIO2 | nc |
 
-1. Log shows LoRa init **and** lines like `TFTView_320x240 init` / `setupUIConfig`.
-2. Boot logo disappears within a few seconds and the home screen appears.
-3. Touch works after on-screen calibration (raw 0..4095 until calibrated).
-4. If the image is rotated wrong, try `-DLGFX_OFFSET_ROTATION=0` (or 2/3).
+### Display KMRTM35018-SPI
 
-## Watchdog / stuck logo (`CPU 0: tft`)
+| Display | ESP32 |
+|---------|-------|
+| VCC | 3V3 |
+| GND | GND |
+| CS | 2 |
+| RESET | 38 |
+| D/C | 5 |
+| SDI | 16 |
+| SCK | 21 |
+| LED | 1 |
+| SDO | nc |
+| T_CLK | 21 |
+| T_CS | 15 |
+| T_DIN | 16 |
+| T_OUT | 4 |
+| T_IRQ | nc |
 
-If the log shows `gpio_isr_handler_remove` and later `task_wdt` with `CPU 0: tft`:
+## Expected log markers (UART)
 
-1. Touch INT and DMA are forced off unless you opt in with `-DMEIN_TOUCH_USE_INT=1` / `-DMEIN_LGFX_USE_DMA=1`.
-2. Start at `-DLGFX_SPI_FREQUENCY=10000000`.
-3. Confirm XPT2046 `T_DO` is wired to GPIO 41 (bus MISO).
-4. **PlatformIO caches branch ZIPs** — delete `.pio/libdeps/mein-mui-node/meshtastic-device-ui` or pin a commit ZIP, otherwise you keep running old driver code.
+```
+MEIN_MUI: LGFX begin SCK=21 MOSI=16 MISO=4 DC=5 CS=2 RST=38
+MEIN_MUI: LGFX init done
+MEIN_MUI: LGFX fillScreen done
+```
+
+If it still hangs after `begin` but before `init done`, re-check TFT wiring.
+If `fillScreen done` appears then WDT fires, try `-DMEIN_MUI_NO_TOUCH=1` as a test.

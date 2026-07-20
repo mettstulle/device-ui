@@ -9,6 +9,8 @@
 #include <functional>
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
 #include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_task_wdt.h"
 #endif
 
 constexpr uint32_t defaultLongPressTime = 700; // ms until long press is detected (lvgl default is 400)
@@ -179,6 +181,9 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
 // Display flushing not using DMA */
 template <class LGFX> void LGFXDriver<LGFX>::display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+    esp_task_wdt_reset();
+#endif
     uint32_t w = lv_area_get_width(area);
     uint32_t h = lv_area_get_height(area);
     lv_draw_sw_rgb565_swap(px_map, w * h);
@@ -364,7 +369,13 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
     lgfx->setBrightness(defaultBrightness);
     lgfx->fillScreen(LGFX::color565(0x3D, 0xDA, 0x83));
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
-    ESP_LOGI("MEIN_MUI", "LGFX fillScreen done");
+    ESP_LOGI("MEIN_MUI", "LGFX fillScreen done (touch %s)",
+#ifdef MEIN_MUI_NO_TOUCH
+             "disabled"
+#else
+             "enabled"
+#endif
+    );
 #endif
 
     if (hasTouch()) {

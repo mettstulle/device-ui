@@ -99,6 +99,10 @@
 #define LGFX_TOUCH_OFFSET_ROTATION LGFX_OFFSET_ROTATION
 #endif
 
+#ifndef MEIN_MUI_ENABLE_TOUCH
+#define MEIN_MUI_NO_TOUCH
+#endif
+
 class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
 {
     lgfx::Panel_ILI9488 _panel_instance;
