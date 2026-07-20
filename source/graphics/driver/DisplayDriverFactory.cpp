@@ -76,7 +76,13 @@
 #include "graphics/LGFX/LGFX_VISION_MASTER_T190.h"
 #endif
 #ifdef MEIN_MUI_NODE
+#ifdef LGFX_DRIVER_TEMPLATE
+#error "MEIN_MUI_NODE: remove LGFX_DRIVER_TEMPLATE/LGFX_GENERIC; use -D LGFX_DRIVER=LGFX_MEIN_MUI_NODE (TFT on SPI3, LoRa on SPI2)"
+#endif
 #include "graphics/LGFX/LGFX_MEIN_MUI_NODE.h"
+#ifndef LGFX_DRIVER
+#define LGFX_DRIVER LGFX_MEIN_MUI_NODE
+#endif
 #endif
 #ifdef NODEMCU_32S
 #include "graphics/LGFX/LGFX_ESPILI9341XPT2046.h"
