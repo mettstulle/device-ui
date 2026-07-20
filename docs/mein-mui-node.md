@@ -80,10 +80,36 @@ build_flags =
 
 lib_deps =
   ${esp32s3_base.lib_deps}
+  ; DO NOT use ${device-ui_base.lib_deps} here — that pins official meshtastic/device-ui
+  ; and PlatformIO will ignore a second ZIP with the same library name.
+  https://github.com/mettstulle/device-ui/archive/45cf1d3af9739ab1119c5207b3542f41b432dfbf.zip
   lovyan03/LovyanGFX@1.2.24
 ```
 
-Pin a device-ui commit ZIP (branch ZIPs are cached aggressively by PlatformIO).
+### Critical: force PlatformIO to actually install the fork
+
+`custom_meshtastic_has_mui = true` only sets flasher metadata. It does **not** pull `device-ui`.
+
+You must list the fork ZIP in `lib_deps` (instead of `${device-ui_base.lib_deps}`).
+
+If PowerShell says `meshtastic-device-ui\...\LGFXDriver.h` is missing while PIO prints `Already up-to-date`, the env never got the library (or the libdeps folder is stale). Force a reinstall:
+
+```powershell
+# from C:\Users\Roy\firmware
+Remove-Item -Recurse -Force .pio\libdeps\mein-mui-node -ErrorAction SilentlyContinue
+pio pkg install -e mein-mui-node
+Get-ChildItem .pio\libdeps\mein-mui-node | Select-Object Name
+Select-String -Path ".pio\libdeps\mein-mui-node\meshtastic-device-ui\include\graphics\driver\LGFXDriver.h" -Pattern "MEIN_MUI_NO_TOUCH"
+```
+
+Expected: a folder named `meshtastic-device-ui` (from `library.json` `name`), and the Select-String hits.
+If the folder is still missing, print resolved deps:
+
+```powershell
+pio pkg list -e mein-mui-node
+```
+
+and confirm `meshtastic-device-ui` appears with the `mettstulle` / `45cf1d3` source URL.
 
 ## Wiring
 
