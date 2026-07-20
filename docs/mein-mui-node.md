@@ -122,6 +122,22 @@ pio pkg list -e mein-mui-node
 
 and confirm `meshtastic-device-ui` appears with the `mettstulle` / `45cf1d3` source URL.
 
+### If AES.h / Fsm.h / OLEDDisplay.h are missing
+
+Those come from `${esp32s3_base.lib_deps}` (`Crypto`, `arduino-fsm`, `esp8266-oled-ssd1306`). OLED is still required even with `HAS_SCREEN=0`.
+
+1. Confirm `lib_deps` still starts with `${esp32s3_base.lib_deps}` (do not replace the whole list with only LovyanGFX + device-ui).
+2. Reinstall and verify:
+
+```powershell
+Remove-Item -Recurse -Force .pio\libdeps\mein-mui-node, .pio\build\mein-mui-node -ErrorAction SilentlyContinue
+pio pkg install -e mein-mui-node
+pio pkg list -e mein-mui-node
+Get-ChildItem .pio\libdeps\mein-mui-node | Select-Object Name
+```
+
+You should see folders similar to `Crypto`, `meshtastic-arduino-fsm` (or `arduino-fsm`), `meshtastic-esp8266-oled-ssd1306` (or `esp8266-oled-ssd1306`), `NimBLE-Arduino`, and `meshtastic-device-ui`.
+
 ## Wiring
 
 ### LoRa DX-PJ27 / DX-LR20
