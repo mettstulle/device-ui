@@ -109,6 +109,12 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
                     } else {
                         ILOG_INFO("enter powersave");
                         DisplayDriver::view->screenSaving(true);
+#if defined(MEIN_MUI_NODE)
+                        // Shared-SPI XPT2046/HR2046: do not disable LVGL touch and do not
+                        // put the panel into sleep/powerSave. That combination wakes the
+                        // backlight again but leaves getTouch() unable to hit UI icons.
+                        // Dim-only powersave; blank_screen overlay still blocks accidental taps.
+#else
                         if (hasTouch() && hasButton()) {
                             ILOG_DEBUG("disable touch, enable button input");
                             lv_indev_enable(DisplayDriver::touch, false);
@@ -116,6 +122,7 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
                         }
                         lgfx->sleep();
                         lgfx->powerSaveOn();
+#endif
                         powerSaving = true;
                     }
                 }
@@ -140,15 +147,27 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
                         ILOG_INFO("leaving powersave");
                         powerSaving = false;
                         DisplayDriver::view->triggerHeartbeat();
+#if !defined(MEIN_MUI_NODE)
                         lgfx->powerSaveOff();
                         lgfx->wakeup();
+#endif
                         lgfx->setBrightness(lastBrightness);
                         DisplayDriver::view->screenSaving(false);
+#if defined(MEIN_MUI_NODE)
+                        // Re-apply calibration in case anything disturbed the touch mapping.
+#ifndef MEIN_MUI_NO_TOUCH
+                        {
+                            uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
+                            lgfx->setTouchCalibrate(parameters);
+                        }
+#endif
+#else
                         if (hasTouch() && hasButton()) {
                             ILOG_DEBUG("enable touch, disable button input");
                             lv_indev_enable(DisplayDriver::touch, true);
                             lv_indev_enable(InputDriver::instance()->getButton(), false);
                         }
+#endif
                         lv_display_trigger_activity(NULL);
                     } else {
                         // we woke up due to e.g. serial traffic (or sleep() simply not implemented)
