@@ -153,8 +153,14 @@ Touchscreen calibration parameters: {a, b, c, d, e, f, g, h}
 ```
 
 Paste those eight values into `LGFXDriver.h` under `#elif defined(MEIN_MUI_NODE)`,
-rebuild with `-DCALIBRATE_TOUCH=0` (or omit the flag and keep the hardcoded array
-via a small local patch), and menu hits should line up.
+rebuild with `-DCALIBRATE_TOUCH=0` (keeps the `#ifdef CALIBRATE_TOUCH` path so
+`setTouchCalibrate()` still runs), and menu hits should line up.
+
+Current panel values (KMRTM35018 / HR2046, rotation offset 1):
+
+```cpp
+uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
+```
 
 If axes feel swapped/mirrored, try `-DLGFX_TOUCH_OFFSET_ROTATION=0` (or 2/3)
 while keeping panel `-DLGFX_OFFSET_ROTATION=1`.

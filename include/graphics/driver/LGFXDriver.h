@@ -409,9 +409,9 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 #elif defined(SENSECAP_INDICATOR)
         uint16_t parameters[8] = {23, 3, 0, 479, 476, 2, 475, 479};
 #elif defined(MEIN_MUI_NODE)
-        // All zeros → LGFXDriver::calibrate() runs interactive crosshair calibration.
-        // After one run, paste the logged parameters here and set CALIBRATE_TOUCH=0.
-        uint16_t parameters[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+        // Captured 2026-07-20 on KMRTM35018-SPI / HR2046 (XPT2046), 480x320, offset_rotation=1
+        // Re-run with -DCALIBRATE_TOUCH=1 if the panel/rotation changes.
+        uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
 #else
         uint16_t parameters[8] = {0, 0, 0, 319, 239, 0, 239, 319};
         ILOG_WARN("Touch screen has no calibration data!!!");
