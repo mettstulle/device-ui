@@ -81,7 +81,6 @@ build_flags =
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
   -DVIEW_320x240
   -DDISPLAY_SET_RESOLUTION=1
-  -DLGFX_CFG_DMA_CH=1
   -DLGFX_PIN_SCK=39
   -DLGFX_PIN_MOSI=40
   -DLGFX_PIN_MISO=41
@@ -90,8 +89,8 @@ build_flags =
   -DLGFX_PIN_RST=38
   -DLGFX_PIN_BL=1
   -DLGFX_TOUCH_CS=15
-  -DLGFX_TOUCH_INT=5
-  -DLGFX_SPI_FREQUENCY=20000000
+  -DLGFX_TOUCH_INT=-1
+  -DLGFX_SPI_FREQUENCY=10000000
   -DLGFX_OFFSET_ROTATION=1
 
 lib_deps =
@@ -119,4 +118,13 @@ Point `lib_deps` device-ui at a revision that contains `LGFX_MEIN_MUI_NODE.h`.
 1. Log shows LoRa init **and** lines like `TFTView_320x240 init` / `setupUIConfig`.
 2. Boot logo disappears within a few seconds and the home screen appears.
 3. Touch works after on-screen calibration (raw 0..4095 until calibrated).
-4. If the image is rotated wrong, try `-D LGFX_OFFSET_ROTATION=0` (or 2/3).
+4. If the image is rotated wrong, try `-DLGFX_OFFSET_ROTATION=0` (or 2/3).
+
+## Watchdog / stuck logo (`CPU 0: tft`)
+
+If the log shows `gpio_isr_handler_remove` and later `task_wdt` with `CPU 0: tft`:
+
+1. Use `-DLGFX_TOUCH_INT=-1` (polling; default in this driver).
+2. Keep DMA off (do not set `-DLGFX_CFG_DMA_CH=1` until stable).
+3. Start at `-DLGFX_SPI_FREQUENCY=10000000`.
+4. Confirm XPT2046 `T_DO` is wired to GPIO 41 (bus MISO).

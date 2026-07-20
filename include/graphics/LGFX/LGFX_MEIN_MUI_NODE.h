@@ -24,7 +24,7 @@
 #ifdef SPI_FREQUENCY
 #define LGFX_SPI_FREQUENCY SPI_FREQUENCY
 #else
-#define LGFX_SPI_FREQUENCY 20000000
+#define LGFX_SPI_FREQUENCY 10000000
 #endif
 #endif
 #ifndef LGFX_PIN_SCK
@@ -58,16 +58,23 @@
 #define MEIN_TOUCH_CS 15
 #endif
 
+// Default: polling touch. Interrupt mode often hits
+// "gpio_isr_handler_remove ... service is not installed" and can wedge the tft task.
 #if defined(LGFX_TOUCH_INT)
 #define MEIN_TOUCH_INT LGFX_TOUCH_INT
 #elif defined(TOUCH_INT_PIN)
 #define MEIN_TOUCH_INT TOUCH_INT_PIN
 #else
-#define MEIN_TOUCH_INT 5
+#define MEIN_TOUCH_INT -1
 #endif
 
 #ifndef LGFX_TOUCH_SPI_FREQ
 #define LGFX_TOUCH_SPI_FREQ 2500000
+#endif
+
+// ILI9488 SPI panels frequently hang if panel read-back is enabled.
+#ifndef LGFX_PANEL_READABLE
+#define LGFX_PANEL_READABLE false
 #endif
 
 #ifndef LGFX_OFFSET_ROTATION
@@ -111,10 +118,11 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.freq_read = 16000000;
             cfg.spi_3wire = false;
             cfg.use_lock = true;
+            // DMA + OPI PSRAM on S3 is a common wedge source for the tft task / WDT.
 #ifdef LGFX_CFG_DMA_CH
             cfg.dma_channel = LGFX_CFG_DMA_CH;
 #else
-            cfg.dma_channel = SPI_DMA_CH_AUTO;
+            cfg.dma_channel = 0;
 #endif
             cfg.pin_sclk = LGFX_PIN_SCK;
             cfg.pin_mosi = LGFX_PIN_MOSI;
@@ -135,7 +143,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             cfg.offset_x = 0;
             cfg.offset_y = 0;
             cfg.offset_rotation = LGFX_OFFSET_ROTATION;
-            cfg.readable = (LGFX_PIN_MISO >= 0);
+            cfg.readable = LGFX_PANEL_READABLE;
             cfg.invert = false;
             cfg.rgb_order = false;
             cfg.dlen_16bit = false;
