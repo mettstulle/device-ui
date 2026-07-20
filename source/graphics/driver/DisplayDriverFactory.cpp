@@ -1,24 +1,9 @@
 #include "graphics/driver/DisplayDriverFactory.h"
 #include "graphics/LGFX/LGFXConfig.h"
 #include <assert.h>
-#if defined(LGFX_DRIVER) || defined(ARCH_PORTDUINO)
-#include "graphics/driver/LGFXDriver.h"
-#endif
-#if defined(OLED_DRIVER) || defined(ARCH_PORTDUINO)
-#include "graphics/driver/OLEDDriver.h"
-#endif
-#if defined(EINK_DRIVER) || defined(ARCH_PORTDUINO)
-// TODO #include "graphics/driver/EINKDriver.h"
-#endif
-#if defined(USE_FRAMEBUFFER)
-#include "graphics/driver/FBDriver.h"
-#endif
-#if defined(USE_X11)
-#include "graphics/driver/X11Driver.h"
-#endif
 
+// Resolve board driver before including LGFXDriver.h (needs LGFX_DRIVER defined).
 #ifndef ARCH_PORTDUINO
-// Board-specific drivers first so leftover LGFX_DRIVER_TEMPLATE flags cannot win.
 #ifdef MEIN_MUI_NODE
 #include "graphics/LGFX/LGFX_MEIN_MUI_NODE.h"
 #undef LGFX_DRIVER
@@ -86,6 +71,22 @@
 #if defined(HELTEC_V4_TFT) || defined(HELTEC_V4_R8_TFT)
 #include "graphics/LGFX/LGFX_HELTEC_V4_TFT.h"
 #endif
+#endif
+
+#if defined(LGFX_DRIVER) || defined(ARCH_PORTDUINO)
+#include "graphics/driver/LGFXDriver.h"
+#endif
+#if defined(OLED_DRIVER) || defined(ARCH_PORTDUINO)
+#include "graphics/driver/OLEDDriver.h"
+#endif
+#if defined(EINK_DRIVER) || defined(ARCH_PORTDUINO)
+// TODO #include "graphics/driver/EINKDriver.h"
+#endif
+#if defined(USE_FRAMEBUFFER)
+#include "graphics/driver/FBDriver.h"
+#endif
+#if defined(USE_X11)
+#include "graphics/driver/X11Driver.h"
 #endif
 
 DisplayDriverFactory::DisplayDriverFactory() {}
