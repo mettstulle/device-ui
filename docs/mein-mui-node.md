@@ -82,9 +82,20 @@ lib_deps =
   ${esp32s3_base.lib_deps}
   ; DO NOT use ${device-ui_base.lib_deps} here — that pins official meshtastic/device-ui
   ; and PlatformIO will ignore a second ZIP with the same library name.
-  https://github.com/mettstulle/device-ui/archive/45cf1d3af9739ab1119c5207b3542f41b432dfbf.zip
+  https://github.com/mettstulle/device-ui/archive/2444b5ba114e38ee9520870bcf057a46171fee2e.zip
   lovyan03/LovyanGFX@1.2.24
+
+; Meshtastic uses NimBLE. Without this, Arduino's BLE lib compiles and fails with
+; esp_bt.h / host/ble_uuid.h missing.
+lib_ignore =
+  ${esp32s3_base.lib_ignore}
+  ESP32 BLE Arduino
+  BLE
 ```
+
+### Critical: ignore Arduino BLE (esp_bt.h / host/ble_uuid.h)
+
+If the build fails compiling `framework-arduinoespressif32/libraries/BLE/...` with missing `esp_bt.h` or `host/ble_uuid.h`, add the `lib_ignore` block above and rebuild. Meshtastic already ships NimBLE via `${esp32s3_base.lib_deps}`; the Arduino BLE stack must not be compiled.
 
 ### Critical: force PlatformIO to actually install the fork
 
