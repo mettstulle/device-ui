@@ -18,31 +18,37 @@ The Meshtastic logo + version string **is already MUI**. Leaving that screen mea
 ## Firmware `variants/esp32s3/mein-mui-node/variant.h`
 
 ```cpp
-// ===== LoRa (LLCC68 via RadioLib SX1262 class) =====
+// ===== LoRa (LLCC68) =====
+// Without USE_LLCC68 / USE_SX1262 the firmware never probes a radio.
+#define USE_LLCC68
+
 #define LORA_SCK 12
 #define LORA_MISO 13
 #define LORA_MOSI 11
-#define SX126X_CS 10
+#define LORA_CS 10
+
+#define SX126X_CS LORA_CS
 #define SX126X_RESET 9
 #define SX126X_DIO1 8
 #define SX126X_BUSY 7
 #define SX126X_RXEN 6
 #define SX126X_TXEN 14
 #define SX126X_MAX_POWER 22
+// No SX126X_DIO2_AS_RF_SWITCH — RXEN/TXEN do the RF switching.
+// No SX126X_DIO3_TCXO_VOLTAGE unless your module has a TCXO (many LLCC68/E220 use XTAL).
 
-// LoRa SPI clock (do not also set -DSPI_FREQUENCY in platformio.ini for the TFT).
-// TFT speed is controlled separately via -DLGFX_SPI_FREQUENCY=...
 #ifndef SPI_FREQUENCY
 #define SPI_FREQUENCY 40000000
 #endif
 
 #define BUTTON_PIN 0
 
-// Move I2C off LoRa IRQ/RESET (ESP32-S3 default Wire is 8/9)
+// Move I2C off LoRa IRQ/RESET (ESP32-S3 default Wire is often 8/9)
 #define I2C_SDA 17
 #define I2C_SCL 18
-#define HAS_AXP192 0
-#define HAS_AXP2101 0
+
+// Do NOT `#define HAS_AXP192 0` / HAS_AXP2101 / HAS_PMU — `#ifdef` still enables PMU code.
+// Leave those macros completely undefined on this DevKit.
 ```
 
 ## Firmware `platformio.ini` environment
