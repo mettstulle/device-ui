@@ -30,8 +30,11 @@ The Meshtastic logo + version string **is already MUI**. Leaving that screen mea
 #define SX126X_TXEN 14
 #define SX126X_MAX_POWER 22
 
-// Keep LoRa SPI frequency independent from the TFT bus.
-// Do NOT set a global SPI_FREQUENCY that the TFT also overrides.
+// LoRa SPI clock (do not also set -DSPI_FREQUENCY in platformio.ini for the TFT).
+// TFT speed is controlled separately via -DLGFX_SPI_FREQUENCY=...
+#ifndef SPI_FREQUENCY
+#define SPI_FREQUENCY 40000000
+#endif
 
 #define BUTTON_PIN 0
 
@@ -70,7 +73,7 @@ build_flags =
   -DUSE_PACKET_API=1
   -DUSE_LOG_DEBUG=1
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
-  -DVIEW_320x240=1
+  -DVIEW_320x240
   -DDISPLAY_SET_RESOLUTION=1
   -DLGFX_CFG_DMA_CH=1
   -DLGFX_PIN_SCK=39
@@ -82,7 +85,7 @@ build_flags =
   -DLGFX_PIN_BL=1
   -DLGFX_TOUCH_CS=15
   -DLGFX_TOUCH_INT=5
-  -DSPI_FREQUENCY=20000000
+  -DLGFX_SPI_FREQUENCY=20000000
   -DLGFX_OFFSET_ROTATION=1
 
 lib_deps =

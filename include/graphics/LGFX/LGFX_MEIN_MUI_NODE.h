@@ -19,9 +19,13 @@
 #include "util/ILog.h"
 #include <LovyanGFX.hpp>
 
-#ifndef SPI_FREQUENCY
-// ILI9488 is typically stable around 20 MHz; raise carefully if needed.
-#define SPI_FREQUENCY 20000000
+// Prefer a display-specific clock so LoRa can keep its own SPI_FREQUENCY in variant.h.
+#ifndef LGFX_SPI_FREQUENCY
+#ifdef SPI_FREQUENCY
+#define LGFX_SPI_FREQUENCY SPI_FREQUENCY
+#else
+#define LGFX_SPI_FREQUENCY 20000000
+#endif
 #endif
 #ifndef LGFX_PIN_SCK
 #define LGFX_PIN_SCK 39
@@ -103,7 +107,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             auto cfg = _bus_instance.config();
             cfg.spi_host = SPI3_HOST;
             cfg.spi_mode = 0;
-            cfg.freq_write = SPI_FREQUENCY;
+            cfg.freq_write = LGFX_SPI_FREQUENCY;
             cfg.freq_read = 16000000;
             cfg.spi_3wire = false;
             cfg.use_lock = true;

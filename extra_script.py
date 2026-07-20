@@ -1,21 +1,34 @@
 # See https://docs.platformio.org/en/latest/manifests/library-json/fields/build/extrascript.html
 Import("env")
 from os.path import join, realpath
+
 # Base srcFilter. Cannot be set in library.json.
 src_filter = [
     "+<resources>",
     "+<locale>",
-    "+<source>"
+    "+<source>",
 ]
 
+
+def define_name(item):
+    """PlatformIO CPPDEFINES entries are either 'NAME' or ('NAME', value)."""
+    if isinstance(item, (list, tuple)):
+        return item[0] if item else None
+    return item
+
+
 for item in env.get("CPPDEFINES", []):
-    # Add generated view directory to include path dependending on VIEW_* macro
-    if isinstance(item,str) and item.startswith("VIEW_"):
-        view = f"ui_{item[5:]}".lower()  # Ex value: "ui_320x240"
+    name = define_name(item)
+    if not isinstance(name, str):
+        continue
+
+    # Add generated view directory to include path depending on VIEW_* macro
+    if name.startswith("VIEW_"):
+        view = f"ui_{name[5:]}".lower()  # Ex value: "ui_320x240"
         env.Append(CPPPATH=[realpath(join("generated", view))])
         src_filter.append(f"+<generated/{view}>")
-    # Add portduino directory to include path dependending on ARCH_PORTDUINO macro
-    elif item == "ARCH_PORTDUINO":
+    # Add portduino directory to include path depending on ARCH_PORTDUINO macro
+    elif name == "ARCH_PORTDUINO":
         env.Append(CPPPATH=[realpath("portduino")])
         src_filter.append("+<portduino>")
 
