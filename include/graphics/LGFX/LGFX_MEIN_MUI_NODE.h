@@ -2,17 +2,18 @@
 
 /**
  * @file LGFX_MEIN_MUI_NODE.h
- * @brief ESP32-S3-N16R8 + LLCC68 (LoRa) + ILI9488 TFT + XPT2046 touch
+ * @brief ESP32-S3-N16R8 + SX1262/LLCC68 (LoRa) + ILI9488 TFT + XPT2046/HR2046 touch
  *
  * SPI layout (critical):
  *  - LoRa (RadioLib) uses the default Arduino SPI host = SPI2_HOST / FSPI
  *  - Display + touch MUST use SPI3_HOST on separate pins to avoid bus contention
- *  - Bus MISO must be the XPT2046 T_DO pin (not -1), even if the panel is write-only
+ *  - Do NOT use GPIO 39-42 for the TFT: those are ESP32-S3 USB-JTAG pins and can
+ *    wedge the tft task when USB is connected (task_wdt, CPU 0: tft).
+ *  - Bus MISO must be the touch T_OUT pin (HR2046/XPT2046), not -1
  *
  * Build flags (firmware platformio.ini):
- *  -D MEIN_MUI_NODE
- *  -D LGFX_DRIVER=LGFX_MEIN_MUI_NODE
- *  Do NOT also enable LGFX_DRIVER_TEMPLATE / LGFX_GENERIC for this board.
+ *  -DMEIN_MUI_NODE=1
+ *  -DLGFX_DRIVER=LGFX_MEIN_MUI_NODE
  */
 
 #define LGFX_USE_V1
@@ -27,17 +28,19 @@
 #define LGFX_SPI_FREQUENCY 10000000
 #endif
 #endif
+
+// Defaults avoid USB-JTAG pins (39-42) on ESP32-S3.
 #ifndef LGFX_PIN_SCK
-#define LGFX_PIN_SCK 39
+#define LGFX_PIN_SCK 21
 #endif
 #ifndef LGFX_PIN_MOSI
-#define LGFX_PIN_MOSI 40
+#define LGFX_PIN_MOSI 16
 #endif
 #ifndef LGFX_PIN_MISO
-#define LGFX_PIN_MISO 41 // XPT2046 T_DO — required for shared-bus touch
+#define LGFX_PIN_MISO 4 // touch T_OUT — required for shared-bus touch
 #endif
 #ifndef LGFX_PIN_DC
-#define LGFX_PIN_DC 42
+#define LGFX_PIN_DC 5
 #endif
 #ifndef LGFX_PIN_CS
 #define LGFX_PIN_CS 2
@@ -49,7 +52,6 @@
 #define LGFX_PIN_BL 1
 #endif
 
-// Prefer LGFX_TOUCH_* names when provided via build_flags; fall back to legacy names.
 #if defined(LGFX_TOUCH_CS)
 #define MEIN_TOUCH_CS LGFX_TOUCH_CS
 #elif defined(TOUCH_CS_PIN)
@@ -58,8 +60,7 @@
 #define MEIN_TOUCH_CS 15
 #endif
 
-// Force polling touch unless explicitly opted in. Leftover -DLGFX_TOUCH_INT=5 from older
-// platformio.ini caused gpio_isr_handler_remove errors and tft-task watchdog aborts.
+// Force polling touch unless explicitly opted in.
 #ifdef MEIN_TOUCH_USE_INT
 #if defined(LGFX_TOUCH_INT)
 #define MEIN_TOUCH_INT LGFX_TOUCH_INT
@@ -76,12 +77,10 @@
 #define LGFX_TOUCH_SPI_FREQ 2500000
 #endif
 
-// ILI9488 SPI panels frequently hang if panel read-back is enabled.
 #ifndef LGFX_PANEL_READABLE
 #define LGFX_PANEL_READABLE false
 #endif
 
-// Opt-in only: DMA has wedged the tft task on S3 + OPI PSRAM with this panel.
 #ifdef MEIN_LGFX_USE_DMA
 #ifdef LGFX_CFG_DMA_CH
 #define MEIN_LGFX_DMA_CH LGFX_CFG_DMA_CH
@@ -93,7 +92,7 @@
 #endif
 
 #ifndef LGFX_OFFSET_ROTATION
-#define LGFX_OFFSET_ROTATION 1 // landscape; try 0/2/3 if the image is rotated wrong
+#define LGFX_OFFSET_ROTATION 1
 #endif
 
 #ifndef LGFX_TOUCH_OFFSET_ROTATION
@@ -105,11 +104,12 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
     lgfx::Panel_ILI9488 _panel_instance;
     lgfx::Bus_SPI _bus_instance;
     lgfx::Light_PWM _light_instance;
+#ifndef MEIN_MUI_NO_TOUCH
     lgfx::Touch_XPT2046 _touch_instance;
+#endif
     uint8_t brightness = 200;
 
   public:
-    // Logical landscape size after offset_rotation
     const uint32_t screenWidth = 480;
     const uint32_t screenHeight = 320;
 
@@ -125,29 +125,28 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
 
     LGFX_MEIN_MUI_NODE(void)
     {
-        { // Display SPI on SPI3 — keeps SPI2 free for LoRa (LLCC68)
+        {
             auto cfg = _bus_instance.config();
             cfg.spi_host = SPI3_HOST;
             cfg.spi_mode = 0;
             cfg.freq_write = LGFX_SPI_FREQUENCY;
-            cfg.freq_read = 16000000;
+            cfg.freq_read = 8000000;
             cfg.spi_3wire = false;
             cfg.use_lock = true;
             cfg.dma_channel = MEIN_LGFX_DMA_CH;
             cfg.pin_sclk = LGFX_PIN_SCK;
             cfg.pin_mosi = LGFX_PIN_MOSI;
-            cfg.pin_miso = LGFX_PIN_MISO; // must be T_DO for XPT2046 shared bus
+            cfg.pin_miso = LGFX_PIN_MISO;
             cfg.pin_dc = LGFX_PIN_DC;
             _bus_instance.config(cfg);
             _panel_instance.setBus(&_bus_instance);
         }
 
-        { // ILI9488 panel (native portrait 320x480, rotated to landscape)
+        {
             auto cfg = _panel_instance.config();
             cfg.pin_cs = LGFX_PIN_CS;
             cfg.pin_rst = LGFX_PIN_RST;
             cfg.pin_busy = -1;
-
             cfg.panel_width = 320;
             cfg.panel_height = 480;
             cfg.offset_x = 0;
@@ -161,7 +160,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             _panel_instance.config(cfg);
         }
 
-        { // Backlight PWM
+        {
             auto cfg = _light_instance.config();
             cfg.pin_bl = LGFX_PIN_BL;
             cfg.invert = false;
@@ -171,7 +170,8 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             _panel_instance.setLight(&_light_instance);
         }
 
-        { // XPT2046 on the same SPI3 bus (different CS)
+#ifndef MEIN_MUI_NO_TOUCH
+        {
             auto cfg = _touch_instance.config();
             cfg.spi_host = SPI3_HOST;
             cfg.freq = LGFX_TOUCH_SPI_FREQ;
@@ -189,6 +189,7 @@ class LGFX_MEIN_MUI_NODE : public lgfx::LGFX_Device
             _touch_instance.config(cfg);
             _panel_instance.setTouch(&_touch_instance);
         }
+#endif
 
         setPanel(&_panel_instance);
     }

@@ -124,7 +124,7 @@ Point `lib_deps` device-ui at a revision that contains `LGFX_MEIN_MUI_NODE.h`.
 
 If the log shows `gpio_isr_handler_remove` and later `task_wdt` with `CPU 0: tft`:
 
-1. Use `-DLGFX_TOUCH_INT=-1` (polling; default in this driver).
-2. Keep DMA off (do not set `-DLGFX_CFG_DMA_CH=1` until stable).
-3. Start at `-DLGFX_SPI_FREQUENCY=10000000`.
-4. Confirm XPT2046 `T_DO` is wired to GPIO 41 (bus MISO).
+1. Touch INT and DMA are forced off unless you opt in with `-DMEIN_TOUCH_USE_INT=1` / `-DMEIN_LGFX_USE_DMA=1`.
+2. Start at `-DLGFX_SPI_FREQUENCY=10000000`.
+3. Confirm XPT2046 `T_DO` is wired to GPIO 41 (bus MISO).
+4. **PlatformIO caches branch ZIPs** — delete `.pio/libdeps/mein-mui-node/meshtastic-device-ui` or pin a commit ZIP, otherwise you keep running old driver code.

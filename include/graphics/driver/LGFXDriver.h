@@ -351,15 +351,21 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
     // ESP_ERR_INVALID_STATE == already installed — ignore that.
     esp_err_t isr_err = gpio_install_isr_service(0);
     if (isr_err != ESP_OK && isr_err != ESP_ERR_INVALID_STATE) {
-        ILOG_WARN("gpio_install_isr_service failed: %d", (int)isr_err);
+        ESP_LOGW("MEIN_MUI", "gpio_install_isr_service failed: %d", (int)isr_err);
     }
-    ILOG_INFO("MEIN_MUI_NODE: LGFX begin (SPI3 ILI9488, touch polling)");
+    // Use ESP_LOGI so messages appear on UART even when Meshtastic ILOG goes to USB CDC.
+    ESP_LOGI("MEIN_MUI", "LGFX begin SCK=%d MOSI=%d MISO=%d DC=%d CS=%d RST=%d", LGFX_PIN_SCK, LGFX_PIN_MOSI, LGFX_PIN_MISO,
+             LGFX_PIN_DC, LGFX_PIN_CS, LGFX_PIN_RST);
 #endif
     lgfx->init();
-    ILOG_INFO("MEIN_MUI_NODE: LGFX init done");
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+    ESP_LOGI("MEIN_MUI", "LGFX init done");
+#endif
     lgfx->setBrightness(defaultBrightness);
     lgfx->fillScreen(LGFX::color565(0x3D, 0xDA, 0x83));
-    ILOG_INFO("MEIN_MUI_NODE: LGFX fillScreen done");
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+    ESP_LOGI("MEIN_MUI", "LGFX fillScreen done");
+#endif
 
     if (hasTouch()) {
 #ifndef CUSTOM_TOUCH_DRIVER
