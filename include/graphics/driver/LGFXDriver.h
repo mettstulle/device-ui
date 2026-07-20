@@ -347,21 +347,19 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
     // Initialize LovyanGFX
     ILOG_DEBUG("LGFX init...");
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
-    // LovyanGFX touch setup may call gpio_isr_handler_remove before the service exists.
-    gpio_install_isr_service(0);
-    ILOG_INFO("MEIN_MUI_NODE: LGFX begin (SPI3 ILI9488, touch_int=%d)",
-#ifdef LGFX_TOUCH_INT
-              LGFX_TOUCH_INT
-#else
-              -1
-#endif
-    );
+    // Ensure ISR service exists before LovyanGFX touch/button setup.
+    // ESP_ERR_INVALID_STATE == already installed — ignore that.
+    esp_err_t isr_err = gpio_install_isr_service(0);
+    if (isr_err != ESP_OK && isr_err != ESP_ERR_INVALID_STATE) {
+        ILOG_WARN("gpio_install_isr_service failed: %d", (int)isr_err);
+    }
+    ILOG_INFO("MEIN_MUI_NODE: LGFX begin (SPI3 ILI9488, touch polling)");
 #endif
     lgfx->init();
-    ILOG_DEBUG("LGFX init done, setBrightness/fillScreen...");
+    ILOG_INFO("MEIN_MUI_NODE: LGFX init done");
     lgfx->setBrightness(defaultBrightness);
     lgfx->fillScreen(LGFX::color565(0x3D, 0xDA, 0x83));
-    ILOG_DEBUG("LGFX fillScreen done");
+    ILOG_INFO("MEIN_MUI_NODE: LGFX fillScreen done");
 
     if (hasTouch()) {
 #ifndef CUSTOM_TOUCH_DRIVER
