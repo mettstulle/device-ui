@@ -67,6 +67,7 @@ build_flags =
   -DLOG_DEBUG_INC=\"DebugConfiguration.h\"
   -DVIEW_320x240
   -DDISPLAY_SET_RESOLUTION=1
+  -DMESHTASTIC_EXCLUDE_PAXCOUNTER=1
   -DLGFX_PIN_SCK=21
   -DLGFX_PIN_MOSI=16
   -DLGFX_PIN_MISO=4
@@ -85,17 +86,34 @@ lib_deps =
   https://github.com/mettstulle/device-ui/archive/2444b5ba114e38ee9520870bcf057a46171fee2e.zip
   lovyan03/LovyanGFX@1.2.24
 
-; Meshtastic uses NimBLE. Without this, Arduino's BLE lib compiles and fails with
-; esp_bt.h / host/ble_uuid.h missing.
+; Meshtastic uses NimBLE. Ignore only the Arduino BLE stack name.
+; Do NOT add a bare "BLE" entry — it can also suppress NimBLE-Arduino.
+; libpax needs esp_bt.h; exclude it on stock esp32-s3-devkitc-1 DIY builds.
 lib_ignore =
   ${esp32s3_base.lib_ignore}
   ESP32 BLE Arduino
-  BLE
+  libpax
 ```
 
 ### Critical: ignore Arduino BLE (esp_bt.h / host/ble_uuid.h)
 
-If the build fails compiling `framework-arduinoespressif32/libraries/BLE/...` with missing `esp_bt.h` or `host/ble_uuid.h`, add the `lib_ignore` block above and rebuild. Meshtastic already ships NimBLE via `${esp32s3_base.lib_deps}`; the Arduino BLE stack must not be compiled.
+If the build fails compiling `framework-arduinoespressif32/libraries/BLE/...`, keep `ESP32 BLE Arduino` in `lib_ignore` (as above). Do **not** add a bare `BLE` ignore — that can drop `NimBLE-Arduino` from libdeps.
+
+### Critical: libpax / missing esp_bt.h
+
+If compilation dies in `libpax/.../blescan.cpp` with `esp_bt.h: No such file`, keep:
+- `-DMESHTASTIC_EXCLUDE_PAXCOUNTER=1` in `build_flags`
+- `libpax` in `lib_ignore`
+
+Then reinstall deps and confirm NimBLE is present:
+
+```powershell
+Remove-Item -Recurse -Force .pio\libdeps\mein-mui-node, .pio\build\mein-mui-node -ErrorAction SilentlyContinue
+pio pkg install -e mein-mui-node
+Get-ChildItem .pio\libdeps\mein-mui-node | Select-String -Pattern "NimBLE|libpax|device-ui|Crypto"
+```
+
+You want `NimBLE-Arduino` present and `libpax` absent.
 
 ### Critical: force PlatformIO to actually install the fork
 
