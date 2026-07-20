@@ -165,6 +165,13 @@ uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
 If axes feel swapped/mirrored, try `-DLGFX_TOUCH_OFFSET_ROTATION=0` (or 2/3)
 while keeping panel `-DLGFX_OFFSET_ROTATION=1`.
 
+### Powersave + touch (XPT2046 shared SPI)
+
+After display timeout, MEIN_MUI no longer calls `lgfx->sleep()` / disables the
+LVGL touch indev. That path broke icon hits after wake on shared-SPI resistive
+panels. Wake by tapping the blank lock overlay; backlight restores and
+calibration is re-applied.
+
 `custom_meshtastic_has_mui = true` only sets flasher metadata. It does **not** pull `device-ui`.
 
 You must list the fork ZIP in `lib_deps` (instead of `${device-ui_base.lib_deps}`).
