@@ -213,11 +213,40 @@ You should see folders similar to `Crypto`, `meshtastic-arduino-fsm` (or `arduin
 
 ## Wiring
 
+### Power (LiPo 1S + Pololu S7V8F3)
+
+Akku (~100×60×11 mm) passt flächig zum Display (~98×58 mm). Der Pololu ist **Buck-Boost 3,3 V** — nicht den Roh-Akku an `3V3` legen.
+
+Zusätzlich brauchst du noch ein **USB-Lademodul** (z. B. TP4056 mit Schutz / besser mit Power-Path). Der S7V8F3 lädt nicht.
+
+```
+USB ──► Lade-IC ──► LiPo(+) ──┬──► Pololu VIN
+                              │
+                              └──► MAX17048 CELL / VIN
+LiPo(−) / GND ───────────────────── gemeinsames GND
+Pololu VOUT (3.3V) ──► ESP32 3V3, LoRa VCC, Display VCC,
+                       MAX17048 VDD, L76K VCC
+Pololu GND ─────────── GND
+```
+
+| Pololu S7V8F3 | Anschluss |
+|---------------|-----------|
+| VIN | LiPo + (nach Schalter/PCM, parallel zur Lade-IC-BAT-Seite) |
+| GND | LiPo − / System-GND |
+| VOUT | System-**3V3** (ESP `3V3`-Pin) |
+| EN | an VIN lassen (immer an) oder Schalter nach GND = aus |
+
+Hinweise:
+
+- Polarität des JST **vor dem Stecken** mit Multimeter prüfen.
+- Beim Entwickeln mit USB-Kabel: Pololu-**VOUT** vom ESP `3V3` trennen (oder nur Akku-Betrieb), sonst Backfeed/Regler-Kampf.
+- Optional Schalter zwischen LiPo + und Pololu VIN.
+
 ### LoRa DX-PJ27 / DX-LR20
 
 | Modul | ESP32 |
 |-------|-------|
-| VCC | 3V3 |
+| VCC | 3V3 (von Pololu) |
 | GND | GND |
 | NSS | 10 |
 | NRST | 9 |
@@ -234,7 +263,7 @@ You should see folders similar to `Crypto`, `meshtastic-arduino-fsm` (or `arduin
 
 | Display | ESP32 |
 |---------|-------|
-| VCC | 3V3 |
+| VCC | 3V3 (von Pololu) |
 | GND | GND |
 | CS | 2 |
 | RESET | 38 |
@@ -248,6 +277,81 @@ You should see folders similar to `Crypto`, `meshtastic-arduino-fsm` (or `arduin
 | T_DIN | 16 |
 | T_OUT | 4 |
 | T_IRQ | nc |
+
+### MAX17048 (I2C Fuel Gauge)
+
+Am bestehenden I2C-Bus (wie in `variant.h`: SDA 17 / SCL 18). Adresse typisch `0x36`.
+
+| MAX17048 | Anschluss |
+|----------|-----------|
+| VDD | 3V3 (von Pololu) |
+| GND | GND |
+| SDA | GPIO **17** |
+| SCL | GPIO **18** |
+| CELL / VIN (Sense) | **LiPo +** (Zellenspannung, nicht die 3,3 V-Schiene) |
+| ALRT | nc (optional später) |
+
+Pull-ups: oft schon auf dem Breakout; sonst 4,7 kΩ SDA/SCL → 3V3.
+
+### Waveshare L76K GPS (UART)
+
+Waveshare-Demo nutzt oft GPIO 16/17 — die sind bei uns **Display/I2C**. Deshalb UART auf **47/48**.
+
+| L76K | ESP32 / Power |
+|------|----------------|
+| VCC | 3V3 (Modul akzeptiert 2,7–5 V; 3V3 reicht) |
+| GND | GND |
+| TX | GPIO **47** (ESP RX ← GPS TX) |
+| RX | GPIO **48** (ESP TX → GPS RX) |
+| PPS | nc (optional Status-LED/GPIO) |
+
+Antenne auf dem Modul aufschrauben; erster Fix braucht freie Sicht zum Himmel.
+
+Firmware-Skizze (`variant.h` / `platformio.ini`):
+
+```cpp
+#define HAS_GPS 1
+#define GPS_RX_PIN 47
+#define GPS_TX_PIN 48
+#define GPS_BAUDRATE 9600
+```
+
+(Pin-Namen in Meshtastic: `GPS_RX_PIN` = MCU empfängt von GPS-TX.)
+
+### Passiver Piezo-Buzzer
+
+| Buzzer | Anschluss |
+|--------|-----------|
+| + / Signal | GPIO **3** (PWM / `PIN_BUZZER`) |
+| − / GND | GND |
+
+Optional ~100–220 Ω in Reihe. Lautstärke zu gering → NPN/MOSFET + 5 V/3V3-Versorgung (Piezo dann nicht direkt am GPIO).
+
+```cpp
+#define PIN_BUZZER 3
+```
+
+### Belegte vs. freie GPIOs (Kurz)
+
+| GPIO | Funktion |
+|------|----------|
+| 0 | Boot-Taste |
+| 1 | TFT BL |
+| 2 | TFT CS |
+| 3 | **Buzzer** |
+| 4 | Touch MISO |
+| 5 | TFT DC |
+| 6–14 | LoRa |
+| 15 | Touch CS |
+| 16 | TFT MOSI |
+| 17 / 18 | I2C (MAX17048) |
+| 21 | TFT SCK |
+| 38 | TFT RST |
+| 47 / 48 | **GPS UART** |
+| 19 / 20 | USB — nicht nutzen |
+| 35–37 | OPI-PSRAM — nicht nutzen |
+| 39–42 | USB-JTAG — nicht für SPI |
+| 43 / 44 | UART0 Konsole — frei lassen |
 
 ## Expected log markers (UART)
 
