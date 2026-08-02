@@ -3,7 +3,8 @@
 Custom Meshtastic MUI board using:
 
 - ESP32-S3 DevKitC-1 N16R8 (16 MB flash, 8 MB OPI PSRAM)
-- DX-LR20 / E22-style SX1262 LoRa (`900M22S`) on SPI2
+- Waveshare **Core1262-868M** (SX1262 + TCXO + RF-Switch) on SPI2
+  - (older bring-up used DX-LR20 / E22-style `900M22S` — pin GPIOs stay the same)
 - KMRTM35018-SPI 3.5" ILI9488 TFT + HR2046 (XPT2046-compatible) on SPI3
 
 ## Critical: do not use GPIO 39-42 for the TFT
@@ -28,7 +29,7 @@ On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected,
 #define SX126X_TXEN 14
 #define SX126X_MAX_POWER 22
 #define SX126X_DIO3_TCXO_VOLTAGE 1.8
-#define TCXO_OPTIONAL
+// Core1262 has on-board TCXO (DIO3). Do NOT keep TCXO_OPTIONAL.
 
 #ifndef SPI_FREQUENCY
 #define SPI_FREQUENCY 40000000
@@ -38,6 +39,8 @@ On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected,
 #define I2C_SDA 17
 #define I2C_SCL 18
 ```
+
+Region in Meshtastic: **EU_868** (Core1262-868M).
 
 ## Firmware `platformio.ini`
 
@@ -234,7 +237,7 @@ Pololu GND ─────────── GND
 | VIN | LiPo + (nach Schalter/PCM, parallel zur Lade-IC-BAT-Seite) |
 | GND | LiPo − / System-GND |
 | VOUT | System-**3V3** (ESP `3V3`-Pin) |
-| EN | an VIN lassen (immer an) oder Schalter nach GND = aus |
+| SHDN | offen lassen oder an VIN (an). Auf GND = aus |
 
 Hinweise:
 
@@ -242,22 +245,29 @@ Hinweise:
 - Beim Entwickeln mit USB-Kabel: Pololu-**VOUT** vom ESP `3V3` trennen (oder nur Akku-Betrieb), sonst Backfeed/Regler-Kampf.
 - Optional Schalter zwischen LiPo + und Pololu VIN.
 
-### LoRa DX-PJ27 / DX-LR20
+### LoRa Waveshare Core1262-868M
 
-| Modul | ESP32 |
-|-------|-------|
-| VCC | 3V3 (von Pololu) |
-| GND | GND |
-| NSS | 10 |
-| NRST | 9 |
-| MOSI | 11 |
-| SCK | 12 |
-| MISO | 13 |
-| DIO1 | 8 |
-| BUSY | 7 |
-| RXEN | 6 |
-| TXEN | 14 |
-| DIO2 | nc |
+ESP-GPIOs bleiben wie beim alten DX-LR20. **Wichtig:** Waveshare beschriftet RXEN/TXEN anders als RadioLib/Meshtastic — die beiden Leitungen sind **über Kreuz** verdrahtet.
+
+| Core1262 Pad | ESP32 / Power | Hinweis |
+|--------------|---------------|---------|
+| 3V3 | 3V3 (Pololu) | nur 3,3 V |
+| GND | GND | mind. einen GND, besser mehrere |
+| CS | **10** | NSS |
+| CLK | **12** | SCK |
+| MOSI | **11** | |
+| MISO | **13** | |
+| RESET | **9** | |
+| BUSY | **7** | |
+| DIO1 | **8** | IRQ |
+| **TXEN** | GPIO **6** (`SX126X_RXEN`) | Kreuz: FW-RXEN → Modul-TXEN |
+| **RXEN** | GPIO **14** (`SX126X_TXEN`) | Kreuz: FW-TXEN → Modul-RXEN |
+| DIO2 | nc | unbenutzt bei MCU-RF-Switch |
+| ANT | Antenne 868 MHz | |
+
+Firmware: `TCXO_OPTIONAL` entfernen (Modul hat TCXO). `SX126X_DIO3_TCXO_VOLTAGE 1.8` behalten. Max 22 dBm.
+
+Wenn TX/RX vertauscht wirken (kein Empfang / schwacher TX): die beiden EN-Leitungen nochmal prüfen (Kreuzung).
 
 ### Display KMRTM35018-SPI
 
