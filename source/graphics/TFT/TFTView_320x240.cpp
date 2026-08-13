@@ -31,6 +31,10 @@
 #include <sstream>
 #include <time.h>
 
+#if defined(MEIN_MUI_NODE)
+#include "graphics/LGFX/MEIN_MUI_TOUCH_CAL.h"
+#endif
+
 #if defined(ARCH_PORTDUINO)
 #include "PortduinoFS.h"
 fs::FS &fileSystem = PortduinoFS;
@@ -280,6 +284,8 @@ bool TFTView_320x240::setupUIConfig(const meshtastic_DeviceUIConfig &uiconfig)
         nodes[ownNode] = objects.node_panel;
 
     // touch screen calibration data
+    // MEIN_MUI: driver already applied baked-in cal; never let stale NVS overwrite it.
+#if !defined(MEIN_MUI_NODE)
     uint16_t *parameters = (uint16_t *)db.uiConfig.calibration_data.bytes;
     if (db.uiConfig.calibration_data.size == 16 && (parameters[0] || parameters[7])) {
 #ifndef IGNORE_CALIBRATION_DATA
@@ -289,6 +295,24 @@ bool TFTView_320x240::setupUIConfig(const meshtastic_DeviceUIConfig &uiconfig)
         lv_label_set_text(objects.basic_settings_calibration_label, buf);
 #endif
     }
+#else
+    {
+        // Refresh NVS with current baked-in cal so a later build without IGNORE stays correct.
+        uint16_t *dst = (uint16_t *)db.uiConfig.calibration_data.bytes;
+        bool dirty = db.uiConfig.calibration_data.size != 16;
+        for (int i = 0; i < 8 && !dirty; ++i) {
+            if (dst[i] != MEIN_MUI_TOUCH_CAL[i])
+                dirty = true;
+        }
+        if (dirty) {
+            for (int i = 0; i < 8; ++i)
+                dst[i] = MEIN_MUI_TOUCH_CAL[i];
+            db.uiConfig.calibration_data.size = 16;
+            controller->storeUIConfig(db.uiConfig);
+        }
+        lv_label_set_text(objects.basic_settings_calibration_label, _("Screen Calibration: done"));
+    }
+#endif
 
     // update home panel bell text
     setBellText(db.uiConfig.alert_enabled, !db.silent);

@@ -8,6 +8,9 @@
 #include "util/ILog.h"
 #include <cstring>
 #include <functional>
+#if defined(MEIN_MUI_NODE)
+#include "graphics/LGFX/MEIN_MUI_TOUCH_CAL.h"
+#endif
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
 #include "driver/gpio.h"
 #include "esp_log.h"
@@ -158,7 +161,9 @@ template <class LGFX> void LGFXDriver<LGFX>::task_handler(void)
                         // Re-apply calibration in case anything disturbed the touch mapping.
 #ifndef MEIN_MUI_NO_TOUCH
                         {
-                            uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
+                            uint16_t parameters[8];
+                            for (int i = 0; i < 8; ++i)
+                                parameters[i] = MEIN_MUI_TOUCH_CAL[i];
                             lgfx->setTouchCalibrate(parameters);
                         }
 #endif
@@ -437,9 +442,10 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 #elif defined(SENSECAP_INDICATOR)
         uint16_t parameters[8] = {23, 3, 0, 479, 476, 2, 475, 479};
 #elif defined(MEIN_MUI_NODE)
-        // Captured 2026-08-13 on KMRTM35018-SPI / HR2046 (XPT2046), 480x320, offset_rotation=3
-        // Re-run with -DCALIBRATE_TOUCH=1 if the panel/rotation changes.
-        uint16_t parameters[8] = {3817, 3895, 267, 3898, 3790, 282, 322, 295};
+        // See MEIN_MUI_TOUCH_CAL.h — keep in sync with powersave re-apply.
+        uint16_t parameters[8];
+        for (int i = 0; i < 8; ++i)
+            parameters[i] = MEIN_MUI_TOUCH_CAL[i];
 #else
         uint16_t parameters[8] = {0, 0, 0, 319, 239, 0, 239, 319};
         ILOG_WARN("Touch screen has no calibration data!!!");
