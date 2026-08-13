@@ -110,7 +110,7 @@ build_flags =
 lib_deps =
   ${esp32s3_base.lib_deps}
   ; DO NOT use ${device-ui_base.lib_deps} — official device-ui wins on name clash
-  https://github.com/mettstulle/device-ui/archive/fe856e326ce26f3798214982b3395c017e084923.zip
+  https://github.com/mettstulle/device-ui/archive/54e154f340e2a8009c2fadb040127ba4545dca43.zip
   lovyan03/LovyanGFX@1.2.24
   ; DO NOT add h2zero/NimBLE-Arduino on develop/pioarduino
 
