@@ -290,33 +290,40 @@ Wenn TX/RX vertauscht wirken (kein Empfang / schwacher TX): die beiden EN-Leitun
 
 Am bestehenden I2C-Bus (wie in `variant.h`: SDA 17 / SCL 18). Adresse typisch `0x36`.
 
+Typische Dual-JST-Module (z. B. Adafruit): die **beiden JST-Buchsen sind parallel**. LiPo an die eine, Last/Ladepfad (→ Pololu VIN) an die andere — Reihenfolge egal. Polarität `+`/`−` auf dem PCB beachten.
+
 | MAX17048 | Anschluss |
 |----------|-----------|
-| VDD | 3V3 (von Pololu) |
-| GND | GND |
+| **VIN** (Logik / Breakout) | **3V3** vom Pololu (gleiche Logik wie ESP) |
+| GND | System-GND |
 | SDA | GPIO **17** |
 | SCL | GPIO **18** |
-| CELL / VIN (Sense) | **LiPo +** (Zellenspannung, nicht die 3,3 V-Schiene) |
+| JST 1 | **LiPo + / −** (Zelle) |
+| JST 2 | weiter zu **Pololu VIN** (und ggf. SM5308-BAT-Seite) |
 | ALRT | nc (optional später) |
 
-Pull-ups: oft schon auf dem Breakout; sonst 4,7 kΩ SDA/SCL → 3V3.
+Hinweise:
+
+- Zellenspannung läuft **nur** über die JSTs (bzw. `Bat`-Pad), **nicht** über den VIN-Pin. VIN ≠ Zell-Sense.
+- Auf Adafruit-Boards speist der Chip **standardmäßig aus der Zelle** (`Bat→VDD`); ohne (oder mit zu flacher) Zelle antwortet er oft **nicht** auf I2C. Optionaler Jumper `Vin/VDD/Bat` auf der Unterseite: nur ändern, wenn du den Chip bewusst aus VIN speisen willst.
+- Pull-ups: oft schon auf dem Breakout; sonst 4,7 kΩ SDA/SCL → 3V3.
 
 #### Steckersymbol oben rechts (Batterie-Betrieb)
 
-Die MUI zeigt das **Steckersymbol**, wenn die Firmware `voltage = 0` meldet (Meshtastic: „kein Akku / Netzbetrieb“, oft `battery_level = 101`). Das ist **kein UI-Bug** — der Fuel-Gauge liefert keine Zellspannung.
+Die MUI zeigt das **Steckersymbol**, wenn die Firmware `voltage = 0` meldet (Meshtastic: „kein Akku / Netzbetrieb“, oft `battery_level = 101`). Dual-JST-Verdrahtung wie oben ist **richtig** — bei weiterhin Stecker liegt es fast immer an **I2C/Firmware**, nicht am JST-Schema.
 
 Checkliste:
 
-1. **CELL / VIN am MAX17048** muss an **LiPo +** (Zellenspannung), **nicht** an 3V3 vom Pololu.
-2. **I2C**: SDA 17, SCL 18, VDD = 3V3, gemeinsames GND; Pull-ups prüfen.
-3. **USB abziehen**, wenn du „nur Akku“ testest — sonst bleibt oft USB/Lade-Pfad aktiv (SM5308). Seriell ggf. über UART0 (43/44), nicht über USB-CDC.
-4. UART-Log suchen:
-   - `Init sensor: MAX17048` / `MAX17048::runOnce began ok`
-   - periodisch `Battery: … batMv=… batPct=…` mit **batMv > 0**
-   - fehlt der Sensor: `begin failed` / kein MAX17048 → Verdrahtung oder `Adafruit_MAX1704X` / I2C in der Firmware prüfen
-5. In der Node-Liste beim eigenen Node: sinnvoll ist z. B. `87% 3.85V`. Steht dort `0.00V` bzw. nur Stecker ohne echte Spannung → weiterhin kein gültiger Fuel-Gauge-Wert.
+1. Multimeter an JST-`+` gegen GND: **~3,5–4,2 V** (Zelle wirklich am Modul).
+2. **I2C**: SDA 17, SCL 18, VIN = 3V3, gemeinsames GND.
+3. **USB abziehen** zum reinen Akku-Test. Seriell ggf. UART0 (43/44).
+4. UART-Log:
+   - `Init sensor: MAX17048` / `… began ok`
+   - `Battery: … batMv=… batPct=…` mit **batMv > 0**
+   - kein Treffer / `begin failed` → Scan findet `0x36` nicht, oder `Adafruit_MAX1704X` fehlt / I2C ausgeschlossen
+5. Node-Liste eigener Node: z. B. `87% 3.85V`. Bei `0.00V` / nur Stecker → weiterhin kein gültiger Fuel-Gauge-Wert.
 
-Firmware (`variant.h`): `I2C_SDA 17`, `I2C_SCL 18`; I2C/Telemetry nicht per `MESHTASTIC_EXCLUDE_I2C` abschalten. MAX17048 wird per I2C-Scan erkannt (Adresse typisch `0x36`).
+Firmware (`variant.h`): `I2C_SDA 17`, `I2C_SCL 18`; I2C/Telemetry nicht per `MESHTASTIC_EXCLUDE_I2C` abschalten. MAX17048 wird per I2C-Scan erkannt (`0x36`). In `platformio.ini` ggf. `Adafruit MAX1704X` als `lib_deps` (falls der DIY-Board-Typ sie nicht schon zieht).
 
 ### Waveshare L76K GPS (UART)
 
