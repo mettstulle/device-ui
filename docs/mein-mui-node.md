@@ -301,6 +301,23 @@ Am bestehenden I2C-Bus (wie in `variant.h`: SDA 17 / SCL 18). Adresse typisc
 
 Pull-ups: oft schon auf dem Breakout; sonst 4,7 kΩ SDA/SCL → 3V3.
 
+#### Steckersymbol oben rechts (Batterie-Betrieb)
+
+Die MUI zeigt das **Steckersymbol**, wenn die Firmware `voltage = 0` meldet (Meshtastic: „kein Akku / Netzbetrieb“, oft `battery_level = 101`). Das ist **kein UI-Bug** — der Fuel-Gauge liefert keine Zellspannung.
+
+Checkliste:
+
+1. **CELL / VIN am MAX17048** muss an **LiPo +** (Zellenspannung), **nicht** an 3V3 vom Pololu.
+2. **I2C**: SDA 17, SCL 18, VDD = 3V3, gemeinsames GND; Pull-ups prüfen.
+3. **USB abziehen**, wenn du „nur Akku“ testest — sonst bleibt oft USB/Lade-Pfad aktiv (SM5308). Seriell ggf. über UART0 (43/44), nicht über USB-CDC.
+4. UART-Log suchen:
+   - `Init sensor: MAX17048` / `MAX17048::runOnce began ok`
+   - periodisch `Battery: … batMv=… batPct=…` mit **batMv > 0**
+   - fehlt der Sensor: `begin failed` / kein MAX17048 → Verdrahtung oder `Adafruit_MAX1704X` / I2C in der Firmware prüfen
+5. In der Node-Liste beim eigenen Node: sinnvoll ist z. B. `87% 3.85V`. Steht dort `0.00V` bzw. nur Stecker ohne echte Spannung → weiterhin kein gültiger Fuel-Gauge-Wert.
+
+Firmware (`variant.h`): `I2C_SDA 17`, `I2C_SCL 18`; I2C/Telemetry nicht per `MESHTASTIC_EXCLUDE_I2C` abschalten. MAX17048 wird per I2C-Scan erkannt (Adresse typisch `0x36`).
+
 ### Waveshare L76K GPS (UART)
 
 Waveshare-Demo nutzt oft GPIO 16/17 — die sind bei uns **Display/I2C**. Deshalb UART auf **47/48**.
