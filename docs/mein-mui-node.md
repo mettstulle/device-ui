@@ -221,14 +221,15 @@ Akku (~100×60×11 mm) passt flächig zum Display (~98×58 mm). Der Pololu i
 Zusätzlich brauchst du noch ein **USB-Lademodul** (z. B. TP4056 mit Schutz / besser mit Power-Path). Der S7V8F3 lädt nicht.
 
 ```
-USB ──► Lade-IC ──► LiPo(+) ──┬──► Pololu VIN
-                              │
-                              └──► MAX17048 CELL / VIN
+USB ──► Lade-IC ──► LiPo(+) ──► MAX17048 JST1
+                                    │
+                              MAX17048 JST2 ──► Pololu VIN
 LiPo(−) / GND ───────────────────── gemeinsames GND
-Pololu VOUT (3.3V) ──► ESP32 3V3, LoRa VCC, Display VCC,
-                       MAX17048 VDD, L76K VCC
+Pololu VOUT (3.3V) ──► ESP32 3V3, LoRa/Display VCC,
+                       MAX17048 VIN (Logik), L76K VCC
 Pololu GND ─────────── GND
 ```
+(JST1/JST2 sind auf Dual-JST-Modulen parallel — tauschbar.)
 
 | Pololu S7V8F3 | Anschluss |
 |---------------|-----------|
@@ -308,22 +309,45 @@ Hinweise:
 - Auf Adafruit-Boards speist der Chip **standardmäßig aus der Zelle** (`Bat→VDD`); ohne (oder mit zu flacher) Zelle antwortet er oft **nicht** auf I2C. Optionaler Jumper `Vin/VDD/Bat` auf der Unterseite: nur ändern, wenn du den Chip bewusst aus VIN speisen willst.
 - Pull-ups: oft schon auf dem Breakout; sonst 4,7 kΩ SDA/SCL → 3V3.
 
-#### Steckersymbol oben rechts (Batterie-Betrieb)
+#### Steckersymbol / Log: `max17048Init … not ready yet` + `USB power=1`
 
-Die MUI zeigt das **Steckersymbol**, wenn die Firmware `voltage = 0` meldet (Meshtastic: „kein Akku / Netzbetrieb“, oft `battery_level = 101`). Dual-JST-Verdrahtung wie oben ist **richtig** — bei weiterhin Stecker liegt es fast immer an **I2C/Firmware**, nicht am JST-Schema.
+Deine Zeilen:
 
-Checkliste:
+```
+DEBUG | Power::max17048Init lipo sensor is not ready yet
+INFO  | PowerFSM init, USB power=1
+```
 
-1. Multimeter an JST-`+` gegen GND: **~3,5–4,2 V** (Zelle wirklich am Modul).
-2. **I2C**: SDA 17, SCL 18, VIN = 3V3, gemeinsames GND.
-3. **USB abziehen** zum reinen Akku-Test. Seriell ggf. UART0 (43/44).
-4. UART-Log:
-   - `Init sensor: MAX17048` / `… began ok`
-   - `Battery: … batMv=… batPct=…` mit **batMv > 0**
-   - kein Treffer / `begin failed` → Scan findet `0x36` nicht, oder `Adafruit_MAX1704X` fehlt / I2C ausgeschlossen
-5. Node-Liste eigener Node: z. B. `87% 3.85V`. Bei `0.00V` / nur Stecker → weiterhin kein gültiger Fuel-Gauge-Wert.
+bedeuten:
 
-Firmware (`variant.h`): `I2C_SDA 17`, `I2C_SCL 18`; I2C/Telemetry nicht per `MESHTASTIC_EXCLUDE_I2C` abschalten. MAX17048 wird per I2C-Scan erkannt (`0x36`). In `platformio.ini` ggf. `Adafruit MAX1704X` als `lib_deps` (falls der DIY-Board-Typ sie nicht schon zieht).
+1. **`not ready yet` (t≈0)** — `Power::setup()` läuft **vor** dem I2C-Scan. Die Sensor-Map ist noch leer → Init schlägt immer zuerst fehl. Das allein sagt noch nichts über die Verdrahtung.
+2. **`USB power=1`** — ohne `BATTERY_PIN` / AXP nimmt PowerFSM **immer** „extern versorgt“ an. Ohne funktionierenden Fuel-Gauge als `batteryLevel` bleibt `hasBattery=false` → Telemetrie `battery_level=101`, `voltage=0` → **Steckersymbol**.
+
+Danach im **vollen** Bootlog prüfen:
+
+- `Starting Bus with (SDA) 17 and (SCL) 18`
+- `Scan for i2c devices` → `N I2C devices found` (nicht `No I2C devices found`)
+- `MAX17048` / Adresse **`0x36`**
+- später idealerweise `Battery: … batMv=…` mit **batMv > 0**
+
+Fehlt `0x36` komplett: Hardware/I2C (Pull-ups, SDA/SCL, Zelle am JST, Chip antwortet nur mit Zelle).
+
+Wird `0x36` gefunden, aber weiterhin Stecker: bekannte Firmware-Reihenfolge — Power übernimmt den MAX17048 **nicht nachträglich**. Fix: Chip **vor** `power->setup()` eintragen (in `src/main.cpp`, direkt nach `Wire.begin(...)`, vor `power = new Power()`):
+
+```cpp
+// Mein-MUI: Power::setup() runs before the full I2C scan; seed MAX17048 early.
+Wire.beginTransmission(0x36);
+if (Wire.endTransmission() == 0) {
+    nodeTelemetrySensorsMap[meshtastic_TelemetrySensorType_MAX17048] = {0x36, &Wire};
+    LOG_INFO("Early probe: MAX17048 at 0x36 for Power");
+} else {
+    LOG_WARN("Early probe: no MAX17048 at 0x36");
+}
+```
+
+Erwartung nach Rebuild: `Power::max17048Init lipo sensor is ready`, dann echte `%` / Volt statt Stecker. `USB power=1` kann beim Boot noch kurz erscheinen; mit erkanntem Akku sollte die UI auf Batterie wechseln (bei starkem Laden ggf. Blitz).
+
+`variant.h` weiter: `I2C_SDA 17`, `I2C_SCL 18`; kein `MESHTASTIC_EXCLUDE_I2C`. `Adafruit_MAX1704X` steckt bereits in der zentralen `platformio.ini` der Firmware.
 
 ### Waveshare L76K GPS (UART)
 
