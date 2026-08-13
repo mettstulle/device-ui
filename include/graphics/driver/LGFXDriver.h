@@ -437,6 +437,8 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 #endif
 
 #if CALIBRATE_TOUCH
+        // Force interactive calibration even when baked-in MEIN_MUI values exist.
+        memset(parameters, 0, sizeof(parameters));
         calibrate(parameters);
 #else
         lgfx->setTouchCalibrate(parameters);
