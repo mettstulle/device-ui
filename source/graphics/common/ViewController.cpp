@@ -854,8 +854,11 @@ bool ViewController::handleFromRadio(const meshtastic_FromRadio &from)
                     break;
                 }
                 default:
-                    ILOG_ERROR("unsupported module config variant: %u", module.which_payload_variant);
-                    return false;
+                    // Newer firmware may send module types this UI build does not model yet
+                    // (e.g. statusmessage=14, traffic_management=15, tak=16, mesh_beacon=17).
+                    // Ignore instead of failing the whole FromRadio handler.
+                    ILOG_DEBUG("ignoring unsupported module config variant: %u", module.which_payload_variant);
+                    break;
                 }
                 break;
             }
