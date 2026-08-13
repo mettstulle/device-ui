@@ -437,9 +437,9 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 #elif defined(SENSECAP_INDICATOR)
         uint16_t parameters[8] = {23, 3, 0, 479, 476, 2, 475, 479};
 #elif defined(MEIN_MUI_NODE)
-        // Captured 2026-07-20 on KMRTM35018-SPI / HR2046 (XPT2046), 480x320, offset_rotation=1
+        // Captured 2026-08-13 on KMRTM35018-SPI / HR2046 (XPT2046), 480x320, offset_rotation=3
         // Re-run with -DCALIBRATE_TOUCH=1 if the panel/rotation changes.
-        uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
+        uint16_t parameters[8] = {3817, 3895, 267, 3898, 3790, 282, 322, 295};
 #else
         uint16_t parameters[8] = {0, 0, 0, 319, 239, 0, 239, 319};
         ILOG_WARN("Touch screen has no calibration data!!!");

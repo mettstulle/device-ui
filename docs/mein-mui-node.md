@@ -161,6 +161,16 @@ rebuild with `-DCALIBRATE_TOUCH=0` (keep `#ifdef CALIBRATE_TOUCH` so
 Note: with baked-in MEIN values, older builds skipped interactive cal even when
 `CALIBRATE_TOUCH=1`. Current fork zeroes the array first so arrows always start.
 
+After a successful cal, set `-DCALIBRATE_TOUCH=0` and rebuild. If hits are still
+wrong, **NVS may still hold old UI calibration** and overwrite the baked-in
+values at UI init. Then add:
+
+```ini
+  -DIGNORE_CALIBRATION_DATA=1
+```
+
+(or clear device prefs / run Settings → Screen Calibration once so NVS is updated).
+
 ### Powersave + touch (XPT2046 shared SPI)
 
 After display timeout, MEIN_MUI no longer calls `lgfx->sleep()` / disables the
