@@ -110,7 +110,7 @@ build_flags =
 lib_deps =
   ${esp32s3_base.lib_deps}
   ; DO NOT use ${device-ui_base.lib_deps} — official device-ui wins on name clash
-  https://github.com/mettstulle/device-ui/archive/5c031997fea133bceaa4985520bc6cccf6aee8bd.zip
+  https://github.com/mettstulle/device-ui/archive/PLACEHOLDER.zip
   lovyan03/LovyanGFX@1.2.24
   ; DO NOT add h2zero/NimBLE-Arduino on develop/pioarduino
 
@@ -141,32 +141,25 @@ pio run -e mein-mui-node
 ### Touch calibration (XPT2046 / HR2046)
 
 Wake-on-touch can work while menu hits miss — that means detection works but
-coordinates are wrong. Calibrate once:
+coordinates are wrong. Calibrate once (after any rotation change):
 
 ```ini
   -DMEIN_MUI_ENABLE_TOUCH=1
   -DCALIBRATE_TOUCH=1
   -DLGFX_TOUCH_SPI_FREQ=1000000
+  -DLGFX_OFFSET_ROTATION=3
+  -DLGFX_TOUCH_OFFSET_ROTATION=3
 ```
 
-Flash, then tap the arrow tips on screen. UART prints:
-
-```
-Touchscreen calibration parameters: {a, b, c, d, e, f, g, h}
-```
+Remove `-DMEIN_MUI_NO_TOUCH=1` if present. Flash, then tap the arrow tips.
+UART prints `Touchscreen calibration parameters: {…}`.
 
 Paste those eight values into `LGFXDriver.h` under `#elif defined(MEIN_MUI_NODE)`,
-rebuild with `-DCALIBRATE_TOUCH=0` (keeps the `#ifdef CALIBRATE_TOUCH` path so
-`setTouchCalibrate()` still runs), and menu hits should line up.
+rebuild with `-DCALIBRATE_TOUCH=0` (keep `#ifdef CALIBRATE_TOUCH` so
+`setTouchCalibrate()` still runs).
 
-Current panel values (KMRTM35018 / HR2046, rotation offset 1):
-
-```cpp
-uint16_t parameters[8] = {242, 240, 3888, 231, 247, 3876, 3787, 3861};
-```
-
-If axes feel swapped/mirrored, try `-DLGFX_TOUCH_OFFSET_ROTATION=0` (or 2/3)
-while keeping panel `-DLGFX_OFFSET_ROTATION=1`.
+Note: with baked-in MEIN values, older builds skipped interactive cal even when
+`CALIBRATE_TOUCH=1`. Current fork zeroes the array first so arrows always start.
 
 ### Powersave + touch (XPT2046 shared SPI)
 

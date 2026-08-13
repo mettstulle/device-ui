@@ -6,6 +6,7 @@
 #include "input/InputDriver.h"
 #include "lvgl_private.h"
 #include "util/ILog.h"
+#include <cstring>
 #include <functional>
 #if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
 #include "driver/gpio.h"
