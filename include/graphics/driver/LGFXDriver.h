@@ -468,6 +468,9 @@ template <class LGFX> bool LGFXDriver<LGFX>::calibrate(uint16_t parameters[8])
         lgfx->setTouchCalibrate(parameters);
     } else {
         calibrating = true;
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+        ESP_LOGI("MEIN_MUI", "interactive calibrateTouch starting — tap the arrows");
+#endif
         std::uint16_t fg = TFT_BLUE;
         std::uint16_t bg = LGFX::color565(0x67, 0xEA, 0x94);
         lgfx->clearDisplay();
@@ -481,6 +484,10 @@ template <class LGFX> bool LGFXDriver<LGFX>::calibrate(uint16_t parameters[8])
             std::swap(fg, bg);
         lgfx->calibrateTouch(parameters, fg, bg, std::max(lgfx->width(), lgfx->height()) >> 3);
         calibrating = false;
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+        ESP_LOGI("MEIN_MUI", "calibrateTouch done: {%u,%u,%u,%u,%u,%u,%u,%u}", parameters[0], parameters[1], parameters[2],
+                 parameters[3], parameters[4], parameters[5], parameters[6], parameters[7]);
+#endif
     }
     ILOG_DEBUG("Touchscreen calibration parameters: {%d, %d, %d, %d, %d, %d, %d, %d}", parameters[0], parameters[1],
                parameters[2], parameters[3], parameters[4], parameters[5], parameters[6], parameters[7]);
