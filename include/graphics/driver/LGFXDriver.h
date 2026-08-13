@@ -409,7 +409,15 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 
     if (hasTouch()) {
 #ifndef CUSTOM_TOUCH_DRIVER
-#ifdef CALIBRATE_TOUCH
+#if defined(MEIN_MUI_NODE) && defined(CALIBRATE_TOUCH) && (CALIBRATE_TOUCH)
+        // Hard-force interactive calibration for MEIN_MUI (ignore baked-in values).
+#if defined(ARCH_ESP32)
+        ESP_LOGI("MEIN_MUI", "FORCING interactive touch calibration (CALIBRATE_TOUCH=1)");
+#endif
+        ILOG_INFO("Calibrating touch...");
+        uint16_t parameters[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+        calibrate(parameters);
+#elif defined(CALIBRATE_TOUCH)
         ILOG_INFO("Calibrating touch...");
 #ifdef T_DECK
         // FIXME: read calibration data from persistent storage using lfs_file_read
@@ -438,13 +446,16 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 #endif
 
 #if CALIBRATE_TOUCH
-        // Force interactive calibration even when baked-in MEIN_MUI values exist.
         memset(parameters, 0, sizeof(parameters));
         calibrate(parameters);
 #else
         lgfx->setTouchCalibrate(parameters);
 #endif
 #endif
+#endif
+    } else {
+#if defined(MEIN_MUI_NODE) && defined(ARCH_ESP32)
+        ESP_LOGW("MEIN_MUI", "hasTouch()=false — calibration skipped (check MEIN_MUI_ENABLE_TOUCH, no MEIN_MUI_NO_TOUCH)");
 #endif
     }
 }
