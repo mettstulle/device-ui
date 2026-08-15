@@ -268,6 +268,32 @@ Firmware: `TCXO_OPTIONAL` entfernen (Modul hat TCXO). `SX126X_DIO3_TCXO_VOLTAGE 
 
 Wenn TX/RX vertauscht wirken (kein Empfang / schwacher TX): die beiden EN-Leitungen nochmal prüfen (Kreuzung).
 
+#### `busyTx` / Critical Error 8 / Reboot nach ~60 s
+
+```
+WARN  Can not send yet, busyTx
+ERROR Hardware Failure! busyTx for more than 60s
+ERROR Record critical error 8 … RadioLibInterface.cpp
+INFO  Rebooting
+```
+
+Bedeutung: Firmware hat TX gestartet, aber **kein TX-done-IRQ** vom Radio (typisch **DIO1**). Das ist Hardware/Verdrahtung, kein UI-Problem — oft nach Neuverdrahten/Zusammenbau.
+
+Prüfen (Durchgang / Wackelkontakt):
+
+| Signal | ESP | Core1262 |
+|--------|-----|----------|
+| **DIO1** | **8** | DIO1 — zuerst prüfen |
+| BUSY | 7 | BUSY |
+| CS / CLK / MOSI / MISO | 10 / 12 / 11 / 13 | CS / CLK / MOSI / MISO |
+| RESET | 9 | RESET |
+| TXEN-Pad | **6** (`SX126X_RXEN`) | Kreuzung |
+| RXEN-Pad | **14** (`SX126X_TXEN`) | Kreuzung |
+
+Bootlog: `SX126x init result 0`, `Use MCU pin 6 as RXEN and pin 14 as TXEN`. Antenne aufgeschraubt. 3V3/GND zum Modul fest.
+
+`rxGood≥1` bei gleichzeitigem `busyTx` → Empfang geht oft noch, TX-IRQ (DIO1) fehlt — DIO1-Leitung priorisieren.
+
 ### Display KMRTM35018-SPI
 
 | Display | ESP32 |
