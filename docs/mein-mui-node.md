@@ -11,7 +11,29 @@ Custom Meshtastic MUI board using:
 
 On ESP32-S3 those pins are USB-JTAG (`MTCK/MTDO/MTDI/MTMS`). With USB connected, SPI there often wedges the `tft` task (`task_wdt`, `CPU 0: tft`).
 
+### WiFi vs. CLI (MUI / COLOR-Display)
+
+Mit MUI setzt die Firmware `display.displaymode = COLOR`. Dann startet **kein** TCP-API-Server auf Port **4403** (und oft auch kein Webserver) — absichtlich, siehe `WiFiAPClient.cpp` / T-Deck-Verhalten.
+
+Folge: Node hat eine **IP** (Karten/NTP über WLAN funktionieren), aber:
+
+```text
+meshtastic --host 192.168.x.x --info
+→ WinError 10061 Verbindung verweigert
+```
+
+**CLI/Config** für MUI-Nodes über **USB-Serial** (oder später BLE, wenn im Build aktiv):
+
+```powershell
+meshtastic --port COMx --info
+meshtastic --port COMx --set device.tzdef "CET-1CEST,M3.5.0,M10.5.0/3"
+meshtastic --port COMx --ch-set module_settings.position_precision 32 --ch-index 0
+```
+
+`MESHTASTIC_EXCLUDE_WEBSERVER=1` im Env entfernt zusätzlich die HTTP-UI — unabhängig davon fehlt 4403 bei COLOR ohnehin.
+
 ## Firmware `variants/esp32s3/mein-mui-node/variant.h`
+
 
 ```cpp
 #define USE_SX1262
