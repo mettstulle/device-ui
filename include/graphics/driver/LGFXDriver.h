@@ -414,15 +414,23 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
 
     if (hasTouch()) {
 #ifndef CUSTOM_TOUCH_DRIVER
-#if defined(MEIN_MUI_NODE) && defined(CALIBRATE_TOUCH) && (CALIBRATE_TOUCH)
-        // Hard-force interactive calibration for MEIN_MUI (ignore baked-in values).
+        // Avoid `#if CALIBRATE_TOUCH` / `(CALIBRATE_TOUCH)` — evaluating a -D value that is not a
+        // plain integer makes GCC fail with "user-defined literal in preprocessor expression".
+        // Mein MUI: baked-in cal by default; interactive only with -DFORCE_CALIBRATE_TOUCH.
+#if defined(MEIN_MUI_NODE) && defined(FORCE_CALIBRATE_TOUCH)
 #if defined(ARCH_ESP32)
-        ESP_LOGI("MEIN_MUI", "FORCING interactive touch calibration (CALIBRATE_TOUCH=1)");
+        ESP_LOGI("MEIN_MUI", "FORCING interactive touch calibration (FORCE_CALIBRATE_TOUCH)");
 #endif
         ILOG_INFO("Calibrating touch...");
         uint16_t parameters[8] = {0, 0, 0, 0, 0, 0, 0, 0};
         calibrate(parameters);
-#elif defined(CALIBRATE_TOUCH)
+#elif defined(MEIN_MUI_NODE)
+        ILOG_INFO("Applying Mein MUI baked-in touch calibration");
+        uint16_t parameters[8];
+        for (int i = 0; i < 8; ++i)
+            parameters[i] = MEIN_MUI_TOUCH_CAL[i];
+        lgfx->setTouchCalibrate(parameters);
+#elif defined(CALIBRATE_TOUCH) || defined(FORCE_CALIBRATE_TOUCH)
         ILOG_INFO("Calibrating touch...");
 #ifdef T_DECK
         // FIXME: read calibration data from persistent storage using lfs_file_read
@@ -441,17 +449,12 @@ template <class LGFX> void LGFXDriver<LGFX>::init_lgfx(void)
         uint16_t parameters[8] = {255, 3691, 203, 198, 3836, 3659, 3795, 162};
 #elif defined(SENSECAP_INDICATOR)
         uint16_t parameters[8] = {23, 3, 0, 479, 476, 2, 475, 479};
-#elif defined(MEIN_MUI_NODE)
-        // See MEIN_MUI_TOUCH_CAL.h — keep in sync with powersave re-apply.
-        uint16_t parameters[8];
-        for (int i = 0; i < 8; ++i)
-            parameters[i] = MEIN_MUI_TOUCH_CAL[i];
 #else
         uint16_t parameters[8] = {0, 0, 0, 319, 239, 0, 239, 319};
         ILOG_WARN("Touch screen has no calibration data!!!");
 #endif
 
-#if CALIBRATE_TOUCH
+#if defined(FORCE_CALIBRATE_TOUCH)
         memset(parameters, 0, sizeof(parameters));
         calibrate(parameters);
 #else

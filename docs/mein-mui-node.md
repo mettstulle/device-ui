@@ -162,31 +162,33 @@ pio run -e mein-mui-node
 
 ### Touch calibration (XPT2046 / HR2046)
 
-Wake-on-touch can work while menu hits miss — that means detection works but
-coordinates are wrong. Calibrate once (after any rotation change):
+Mein MUI applies baked-in cal from `MEIN_MUI_TOUCH_CAL.h` automatically (no
+`-DCALIBRATE_TOUCH=…` needed). **Do not** use `-DCALIBRATE_TOUCH=0` / `=1` —
+evaluating that define in `#if` can fail the build with
+`user-defined literal in preprocessor expression`.
+
+Normal build flags:
 
 ```ini
   -DMEIN_MUI_ENABLE_TOUCH=1
-  -DCALIBRATE_TOUCH=1
   -DLGFX_TOUCH_SPI_FREQ=1000000
   -DLGFX_OFFSET_ROTATION=3
   -DLGFX_TOUCH_OFFSET_ROTATION=3
 ```
 
-Remove `-DMEIN_MUI_NO_TOUCH=1` if present. Flash, then tap the arrow tips.
-UART prints `Touchscreen calibration parameters: {…}`.
+Remove `-DMEIN_MUI_NO_TOUCH=1` and any `-DCALIBRATE_TOUCH=…` if present.
 
-Paste those eight values into `LGFXDriver.h` under `#elif defined(MEIN_MUI_NODE)`,
-rebuild with `-DCALIBRATE_TOUCH=0` (keep `#ifdef CALIBRATE_TOUCH` so
-`setTouchCalibrate()` still runs).
+To force interactive recalibration once:
 
-Note: with baked-in MEIN values, older builds skipped interactive cal even when
-`CALIBRATE_TOUCH=1`. Current fork zeroes the array first so arrows always start.
+```ini
+  -DFORCE_CALIBRATE_TOUCH
+```
 
-After a successful cal, set `-DCALIBRATE_TOUCH=0` and rebuild. Mein MUI now
-always writes the baked-in cal into NVS on boot (and re-applies it after
-powersave), so a restart should keep touch aligned. `IGNORE_CALIBRATION_DATA=1`
-remains optional hardening.
+Flash, tap the arrow tips, UART prints `Touchscreen calibration parameters: {…}`.
+Paste the eight values into `include/graphics/LGFX/MEIN_MUI_TOUCH_CAL.h`, remove
+`-DFORCE_CALIBRATE_TOUCH`, rebuild.
+
+Powersave re-applies the baked-in cal; `IGNORE_CALIBRATION_DATA=1` remains optional.
 
 ### Powersave + touch (XPT2046 shared SPI)
 
