@@ -47,8 +47,8 @@ meshtastic --port COMx --ch-set module_settings.position_precision 32 --ch-index
 #define SX126X_RESET 9
 #define SX126X_DIO1 8
 #define SX126X_BUSY 7
-#define SX126X_RXEN 6
-#define SX126X_TXEN 14
+#define SX126X_RXEN 6   // FW-RXEN → Modul-TXEN (Kreuz); optional → 39 siehe Pin-Hinweis unten
+#define SX126X_TXEN 14  // FW-TXEN → Modul-RXEN (Kreuz)
 #define SX126X_MAX_POWER 22
 #define SX126X_DIO3_TCXO_VOLTAGE 1.8
 // Core1262 has on-board TCXO (DIO3). Do NOT keep TCXO_OPTIONAL.
@@ -60,9 +60,47 @@ meshtastic --port COMx --ch-set module_settings.position_precision 32 --ch-index
 #define BUTTON_PIN 0
 #define I2C_SDA 17
 #define I2C_SCL 18
+// #define PIN_BUZZER 3
+// #define LED_PIN 41   // optional statt GPIO1 für TFT-BL (nur langsames GPIO)
 ```
 
 Region in Meshtastic: **EU_868** (Core1262-868M).
+
+### GPIO 1 / 6 und Flash — Recherche-Hinweis
+
+Auf dem **klassischen ESP32** sind GPIO 6–11 die externe Flash-SPI — die darf man nicht nutzen. Beim **ESP32-S3** (dein N16R8) liegt Flash/PSRAM intern auf **GPIO 26–32** (bzw. 33–37 bei Octal); die sind am WROOM-Modul **nicht herausgeführt**. GPIO 1 und 6 sind laut Espressif normale, nutzbare GPIOs.
+
+Trotzdem kann dein Befund praktisch relevant sein:
+
+| Pin heute | Funktion | Risiko |
+|-----------|----------|--------|
+| **GPIO 6** | FW `SX126X_RXEN` → **Modul-TXEN** | Schaltet bei **jedem TX** um — genau wenn das Modul mit voller Leistung (~22 dBm) sendet |
+| **GPIO 1** | TFT Backlight | Weniger kritisch (statisch), liegt aber oft nah an anderen Leitungen auf dem DevKit |
+
+Starke LoRa-HF in Antennen-/Modulnähe zum ESP kann Flash-/LittleFS-Zugriffe stören (Brownout, Bitfehler) — das passt zur fehlenden `/prefs/uiconfig.proto`, auch wenn 1/6 keine Flash-Pins des S3 sind.
+
+**Maßnahmen (Priorität):**
+
+1. Antenne fest, gut getrennt vom ESP/DevKit; kurze IPEX–SMA; solides gemeinsames GND (kein loser GND wie früher beim busyTx).
+2. Testweise `SX126X_MAX_POWER` senken (z. B. 14–16) und prüfen, ob Prefs-Schreiben stabiler wird.
+3. Optional umverdrahten / in `variant.h` + `platformio.ini` anpassen — RF-Schalter und BL **aus dem LoRa-Cluster 6–14** heraus:
+
+| Signal | Alt | Neu (Vorschlag) | Hinweis |
+|--------|-----|-----------------|--------|
+| Modul-**TXEN** (FW `SX126X_RXEN`) | GPIO **6** | GPIO **39** | Nur digitales Schalten, kein SPI — USB-JTAG dann nicht parallel nutzen |
+| TFT **BL** | GPIO **1** | GPIO **41** | `-DLGFX_PIN_BL=41` |
+| Modul-RXEN (FW `SX126X_TXEN`) | GPIO **14** | kann bleiben | weniger kritisch als TXEN |
+
+```cpp
+#define SX126X_RXEN 39   // statt 6 — Modul-TXEN-Pad
+#define SX126X_TXEN 14   // unverändert, Modul-RXEN-Pad
+```
+
+```ini
+  -DLGFX_PIN_BL=41
+```
+
+Nach dem Umbau: LoRa-Init (`SX126x init result 0`), TX-Test, dann UI-Einstellungen + UART auf `Save /prefs/uiconfig.proto` / Dateiliste prüfen.
 
 ## Firmware `platformio.ini`
 
@@ -490,22 +528,27 @@ Optional ~100–220 Ω in Reihe. Lautstärke zu gering → NPN/MOSFET + 5 V/
 | GPIO | Funktion |
 |------|----------|
 | 0 | Boot-Taste |
-| 1 | TFT BL |
+| 1 | TFT BL *(optional → 41, siehe GPIO-1/6-Hinweis)* |
 | 2 | TFT CS |
 | 3 | **Buzzer** |
 | 4 | Touch MISO |
 | 5 | TFT DC |
-| 6–14 | LoRa |
+| 6 | LoRa FW-RXEN→Modul-TXEN *(optional → 39)* |
+| 7–13 | LoRa BUSY/DIO1/RST/SPI |
+| 14 | LoRa FW-TXEN→Modul-RXEN |
 | 15 | Touch CS |
 | 16 | TFT MOSI |
 | 17 / 18 | I2C (MAX17048) |
 | 21 | TFT SCK |
 | 38 | TFT RST |
+| 39 / 41 | frei / optional RXEN bzw. BL |
 | 47 / 48 | **GPS UART** |
 | 19 / 20 | USB — nicht nutzen |
+| 26–32 | intern Flash (S3) — nicht herausgeführt |
 | 35–37 | OPI-PSRAM — nicht nutzen |
-| 39–42 | USB-JTAG — nicht für SPI |
+| 40 / 42 | USB-JTAG — kein SPI; OK für langsame GPIO falls nötig |
 | 43 / 44 | UART0 Konsole — frei lassen |
+| 45 / 46 | Strapping — meiden |
 
 ## Expected log markers (UART)
 
