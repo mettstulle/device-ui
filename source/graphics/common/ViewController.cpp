@@ -211,8 +211,12 @@ bool ViewController::requestReset(bool factoryReset, uint32_t nodeId)
 
 bool ViewController::storeUIConfig(const meshtastic_DeviceUIConfig &config)
 {
+    // Firmware setupUIConfig only keeps settings when version==1; force it on every write.
+    meshtastic_DeviceUIConfig cfg = config;
+    if (cfg.version != 1)
+        cfg.version = 1;
     return sendAdminMessage(
-        meshtastic_AdminMessage{.which_payload_variant = meshtastic_AdminMessage_store_ui_config_tag, .store_ui_config = config},
+        meshtastic_AdminMessage{.which_payload_variant = meshtastic_AdminMessage_store_ui_config_tag, .store_ui_config = cfg},
         myNodeNum);
 }
 

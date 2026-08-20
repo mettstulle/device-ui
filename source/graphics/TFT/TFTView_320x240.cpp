@@ -202,20 +202,45 @@ void TFTView_320x240::init(IClientBase *client)
  */
 bool TFTView_320x240::setupUIConfig(const meshtastic_DeviceUIConfig &uiconfig)
 {
+    bool needStore = false;
     if (uiconfig.version == 1) {
         ILOG_INFO("setupUIConfig version %d", uiconfig.version);
         db.uiConfig = uiconfig;
         if (db.uiConfig.screen_timeout == 1) {
             db.uiConfig.screen_timeout = 30;
-            controller->storeUIConfig(db.uiConfig);
+            needStore = true;
         }
     } else {
         ILOG_WARN("invalid uiconfig version %d, reset UI settings to default", uiconfig.version);
+        // Start from a clean struct so we never persist leftover RAM garbage.
+        db.uiConfig = meshtastic_DeviceUIConfig_init_default;
         db.uiConfig.version = 1;
         db.uiConfig.screen_brightness = 153;
         db.uiConfig.screen_timeout = 30;
-        controller->storeUIConfig(db.uiConfig);
+        needStore = true;
     }
+
+#if defined(MEIN_MUI_NODE)
+    // Bake touch cal into the same NVS write as defaults / timeout fix — never a second
+    // store with a half-initialized db.uiConfig that could wipe language/timeout/alert.
+    {
+        uint16_t *dst = (uint16_t *)db.uiConfig.calibration_data.bytes;
+        bool calDirty = db.uiConfig.calibration_data.size != 16;
+        for (int i = 0; i < 8 && !calDirty; ++i) {
+            if (dst[i] != MEIN_MUI_TOUCH_CAL[i])
+                calDirty = true;
+        }
+        if (calDirty) {
+            for (int i = 0; i < 8; ++i)
+                dst[i] = MEIN_MUI_TOUCH_CAL[i];
+            db.uiConfig.calibration_data.size = 16;
+            needStore = true;
+        }
+    }
+#endif
+
+    if (needStore)
+        controller->storeUIConfig(db.uiConfig);
 
     lv_i18n_init(lv_i18n_language_pack);
     setLocale(db.uiConfig.language);
@@ -285,6 +310,7 @@ bool TFTView_320x240::setupUIConfig(const meshtastic_DeviceUIConfig &uiconfig)
 
     // touch screen calibration data
     // MEIN_MUI: driver already applied baked-in cal; never let stale NVS overwrite it.
+    // Cal bytes are synced to NVS earlier (with version/defaults) when dirty.
 #if !defined(MEIN_MUI_NODE)
     uint16_t *parameters = (uint16_t *)db.uiConfig.calibration_data.bytes;
     if (db.uiConfig.calibration_data.size == 16 && (parameters[0] || parameters[7])) {
@@ -296,22 +322,7 @@ bool TFTView_320x240::setupUIConfig(const meshtastic_DeviceUIConfig &uiconfig)
 #endif
     }
 #else
-    {
-        // Refresh NVS with current baked-in cal so a later build without IGNORE stays correct.
-        uint16_t *dst = (uint16_t *)db.uiConfig.calibration_data.bytes;
-        bool dirty = db.uiConfig.calibration_data.size != 16;
-        for (int i = 0; i < 8 && !dirty; ++i) {
-            if (dst[i] != MEIN_MUI_TOUCH_CAL[i])
-                dirty = true;
-        }
-        if (dirty) {
-            for (int i = 0; i < 8; ++i)
-                dst[i] = MEIN_MUI_TOUCH_CAL[i];
-            db.uiConfig.calibration_data.size = 16;
-            controller->storeUIConfig(db.uiConfig);
-        }
-        lv_label_set_text(objects.basic_settings_calibration_label, _("Screen Calibration: done"));
-    }
+    lv_label_set_text(objects.basic_settings_calibration_label, _("Screen Calibration: done"));
 #endif
 
     // update home panel bell text
@@ -4024,8 +4035,11 @@ void TFTView_320x240::ui_event_ok(lv_event_t *e)
             meshtastic_Language lang = THIS->val2language(value);
             if (lang != THIS->db.uiConfig.language) {
                 THIS->db.uiConfig.language = lang;
+                THIS->db.uiConfig.version = 1;
                 THIS->controller->storeUIConfig(THIS->db.uiConfig);
-                THIS->controller->requestReboot(3, THIS->ownNode);
+                // Give LittleFS time to finish atomic write before soft reboot
+                // (uiconfig.proto was missing on Mein MUI when reboot raced the save).
+                THIS->controller->requestReboot(10, THIS->ownNode);
                 THIS->notifyReboot(true);
             }
 
@@ -6341,6 +6355,8 @@ void TFTView_320x240::updateRingtone(const char rtttl[231])
             break;
         }
     }
+    // Index 0 is the silent placeholder — restore silence after reboot (not in DeviceUIConfig).
+    db.silent = (rtIndex == 0);
     if (rtIndex != 0)
         db.uiConfig.ring_tone_id = rtIndex;
     if (db.uiConfig.ring_tone_id == 0)

@@ -399,6 +399,54 @@ Erwartung nach Rebuild: `Power::max17048Init lipo sensor is ready`, dann echte `
 
 `variant.h` weiter: `I2C_SDA 17`, `I2C_SCL 18`; kein `MESHTASTIC_EXCLUDE_I2C`. `Adafruit_MAX1704X` steckt bereits in der zentralen `platformio.ini` der Firmware.
 
+### UI-Einstellungen verschwinden nach Reboot (Sprache, Timeout, Banner)
+
+UART-Befund auf Mein MUI:
+
+```text
+ERROR | Could not open / read /prefs/uiconfig.proto
+WARN  | [DeviceUI] invalid uiconfig version 0, reset UI settings to default
+INFO  | [Router] Storing device-ui config
+```
+
+Im Dateilisting fehlt `/prefs/uiconfig.proto` (andere `/prefs/*.proto` sind da). Die MUI schickt `store_ui_config` (Admin payload 46), aber die Datei überlebt den Neustart nicht → Sprache wieder Englisch, Timeout/Banner zurück auf Defaults.
+
+**device-ui (dieses Repo):** erzwingt `version=1` bei jedem Store, schreibt Touch-Cal zusammen mit Defaults (kein zweiter Halb-Store), und wartet **10 s** statt 3 s vor Sprach-Reboot.
+
+**Firmware (Pflicht auf dem PC unter `C:\Users\Roy\firmware`):** `AdminModule::handleStoreDeviceUIConfig` muss RAM aktualisieren, stale `.tmp` löschen und den Save-Erfolg loggen:
+
+```cpp
+// src/modules/AdminModule.cpp
+void AdminModule::handleStoreDeviceUIConfig(const meshtastic_DeviceUIConfig &uicfg)
+{
+    uiconfig = uicfg;
+#ifdef FSCom
+    {
+        concurrency::LockGuard g(spiLock);
+        FSCom.mkdir("/prefs");
+        if (FSCom.exists("/prefs/uiconfig.proto.tmp")) {
+            LOG_DEBUG("Remove stale /prefs/uiconfig.proto.tmp");
+            FSCom.remove("/prefs/uiconfig.proto.tmp");
+        }
+    }
+#endif
+    if (!nodeDB->saveProto("/prefs/uiconfig.proto", meshtastic_DeviceUIConfig_size, &meshtastic_DeviceUIConfig_msg,
+                           &uiconfig)) {
+        LOG_ERROR("Failed to persist /prefs/uiconfig.proto");
+    }
+}
+```
+
+Optional upstream nachziehen: SafeFile stale-`.tmp`-Fix ([firmware#11428](https://github.com/meshtastic/firmware/pull/11428)) und `saveProto`-Fehlerpropagation ([firmware#11429](https://github.com/meshtastic/firmware/pull/11429)).
+
+Nach Firmware-Rebuild im UART prüfen:
+
+1. Nach Einstellungsänderung: `Save /prefs/uiconfig.proto` (ohne `Can't write prefs` / `Failed to persist`)
+2. Nach Reboot in der Dateiliste: `/prefs/uiconfig.proto (… Bytes)`
+3. `setupUIConfig version 1` — nicht `invalid uiconfig version 0`
+
+Wenn `uiconfig.proto.tmp` existiert und Saves scheitern: Node einmal mit dem Patch flashen (löscht `.tmp`) oder LittleFS neu formatieren / Factory-Reset.
+
 ### Waveshare L76K GPS (UART)
 
 Waveshare-Demo nutzt oft GPIO 16/17 — die sind bei uns **Display/I2C**. Deshalb UART auf **47/48**.
