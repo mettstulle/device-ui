@@ -60,8 +60,6 @@ meshtastic --port COMx --ch-set module_settings.position_precision 32 --ch-index
 #define BUTTON_PIN 0
 #define I2C_SDA 17
 #define I2C_SCL 18
-// #define PIN_BUZZER 3
-// #define LED_PIN 41   // optional statt GPIO1 für TFT-BL (nur langsames GPIO)
 ```
 
 Region in Meshtastic: **EU_868** (Core1262-868M).
