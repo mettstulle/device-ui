@@ -418,10 +418,12 @@ Danach im **vollen** Bootlog prüfen:
 
 Fehlt `0x36` komplett: Hardware/I2C (Pull-ups, SDA/SCL, Zelle am JST, Chip antwortet nur mit Zelle).
 
-Wird `0x36` gefunden, aber weiterhin Stecker: bekannte Firmware-Reihenfolge — Power übernimmt den MAX17048 **nicht nachträglich**. Fix: Chip **vor** `power->setup()` eintragen (in `src/main.cpp`, direkt nach `Wire.begin(...)`, vor `power = new Power()`):
+Wird `0x36` gefunden, aber weiterhin Stecker: bekannte Firmware-Reihenfolge — Power übernimmt den MAX17048 **nicht nachträglich**. Fix: Chip **vor** `power->setup()` eintragen (in `src/main.cpp`, direkt nach dem **ersten** `Wire.begin(...)`, vor `power = new Power()`):
 
 ```cpp
 // Mein-MUI: Power::setup() runs before the full I2C scan; seed MAX17048 early.
+// KEIN zweites Wire.begin() — pioarduino/Arduino-3 I2C-NG verträgt das nicht
+// (Log: "Bus already started" → i2cWrite ESP_ERR_INVALID_STATE).
 Wire.beginTransmission(0x36);
 if (Wire.endTransmission() == 0) {
     nodeTelemetrySensorsMap[meshtastic_TelemetrySensorType_MAX17048] = {0x36, &Wire};
@@ -431,13 +433,23 @@ if (Wire.endTransmission() == 0) {
 }
 ```
 
-Erwartung nach Rebuild: `Power::max17048Init lipo sensor is ready`, dann echte `%` / Volt statt Stecker. `USB power=1` kann beim Boot noch kurz erscheinen; mit erkanntem Akku sollte die UI auf Batterie wechseln (bei starkem Laden ggf. Blitz).
+Erwarteter UART-Ausschnitt:
+
+```text
+INFO  | Starting Bus with (SDA) 17 and (SCL) 18
+INFO  | Early probe: MAX17048 at 0x36 for Power
+```
+
+Wenn danach `Wire.cpp begin(): Bus already started in Master Mode` und
+`i2cWrite(): … ESP_ERR_INVALID_STATE` kommt: irgendwo wird **`Wire.begin()` ein zweites Mal** aufgerufen (Probe selbst darf das nicht; oft zusätzliches `Wire.begin(SDA,SCL)` in der eigenen Patch-Zeile oder in Power/Sensor-Init). Zweites `begin` entfernen — Probe nur mit `beginTransmission`/`endTransmission`.
+
+Erwartung nach sauberem Rebuild: `Power::max17048Init lipo sensor is ready`, dann echte `%` / Volt statt Stecker. `USB power=1` kann beim Boot noch kurz erscheinen; mit erkanntem Akku sollte die UI auf Batterie wechseln (bei starkem Laden ggf. Blitz).
 
 `variant.h` weiter: `I2C_SDA 17`, `I2C_SCL 18`; kein `MESHTASTIC_EXCLUDE_I2C`. `Adafruit_MAX1704X` steckt bereits in der zentralen `platformio.ini` der Firmware.
 
 ### UI-Einstellungen verschwinden nach Reboot (Sprache, Timeout, Banner)
 
-UART-Befund auf Mein MUI:
+UART-Befund auf Mein MUI (auch **ohne** Pin-Umbau / ohne reduzierte Sendestärke — Stand weiterhin):
 
 ```text
 ERROR | Could not open / read /prefs/uiconfig.proto
@@ -447,24 +459,27 @@ INFO  | [Router] Storing device-ui config
 
 Im Dateilisting fehlt `/prefs/uiconfig.proto` (andere `/prefs/*.proto` sind da). Die MUI schickt `store_ui_config` (Admin payload 46), aber die Datei überlebt den Neustart nicht → Sprache wieder Englisch, Timeout/Banner zurück auf Defaults.
 
+**Das ist unabhängig von GPIO 1/6 / TX-Power**, solange der Firmware-Store kaputt/unvollständig ist. Pin-/Leistungs-Experimente sind optional (HF-Störung); zuerst den Store-Patch flashen.
+
+**Root cause auf Mein MUI:** In älteren Firmware-Ständen steckt der Save hinter `#if HAS_SCREEN`. Das Env setzt `-DHAS_SCREEN=0` und `-DHAS_TFT=1` → der Save wird **wegkompiliert**. UART zeigt trotzdem `Storing device-ui config` (Log liegt im `switch` davor), aber nie `Save /prefs/uiconfig.proto`.
+
 **device-ui (dieses Repo):** erzwingt `version=1` bei jedem Store, schreibt Touch-Cal zusammen mit Defaults (kein zweiter Halb-Store), und wartet **10 s** statt 3 s vor Sprach-Reboot.
 
-**Firmware (Pflicht auf dem PC unter `C:\Users\Roy\firmware`):** `AdminModule::handleStoreDeviceUIConfig` muss RAM aktualisieren, stale `.tmp` löschen und den Save-Erfolg loggen:
+**Firmware (Pflicht auf dem PC unter `C:\Users\Roy\firmware`):** `handleStoreDeviceUIConfig` **ohne** `#if HAS_SCREEN`, RAM aktualisieren, stale `.tmp` löschen:
 
 ```cpp
-// src/modules/AdminModule.cpp
+// src/modules/AdminModule.cpp — komplette Funktion ersetzen, keinen alten Rest stehen lassen
 void AdminModule::handleStoreDeviceUIConfig(const meshtastic_DeviceUIConfig &uicfg)
 {
     uiconfig = uicfg;
 #ifdef FSCom
-    {
-        concurrency::LockGuard g(spiLock);
-        FSCom.mkdir("/prefs");
-        if (FSCom.exists("/prefs/uiconfig.proto.tmp")) {
-            LOG_DEBUG("Remove stale /prefs/uiconfig.proto.tmp");
-            FSCom.remove("/prefs/uiconfig.proto.tmp");
-        }
+    spiLock->lock();
+    FSCom.mkdir("/prefs");
+    if (FSCom.exists("/prefs/uiconfig.proto.tmp")) {
+        LOG_DEBUG("Remove stale /prefs/uiconfig.proto.tmp");
+        FSCom.remove("/prefs/uiconfig.proto.tmp");
     }
+    spiLock->unlock();
 #endif
     if (!nodeDB->saveProto("/prefs/uiconfig.proto", meshtastic_DeviceUIConfig_size, &meshtastic_DeviceUIConfig_msg,
                            &uiconfig)) {
@@ -473,6 +488,7 @@ void AdminModule::handleStoreDeviceUIConfig(const meshtastic_DeviceUIConfig &uic
 }
 ```
 
+Direkt danach muss `handleSetHamMode` (oder die nächste Funktion) kommen — **kein** zweites `{ #if HAS_SCREEN … }`-Fragment.
 Optional upstream nachziehen: SafeFile stale-`.tmp`-Fix ([firmware#11428](https://github.com/meshtastic/firmware/pull/11428)) und `saveProto`-Fehlerpropagation ([firmware#11429](https://github.com/meshtastic/firmware/pull/11429)).
 
 Nach Firmware-Rebuild im UART prüfen:
