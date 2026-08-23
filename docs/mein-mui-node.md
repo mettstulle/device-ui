@@ -537,6 +537,49 @@ Optional ~100–220 Ω in Reihe. Lautstärke zu gering → NPN/MOSFET + 5 V/
 #define PIN_BUZZER 3
 ```
 
+### SD-Karte für Offline-Karten (SPI-Adapter)
+
+MUI lädt Kacheln von der SD unter `/maps/<style>/<z>/<x>/<y>.png` (256×256, ideal 8-bit). Ohne SD nur WLAN-Download (bei COLOR oft eingeschränkt). Mit SD: Karten ad-hoc offline.
+
+**Amazon SPI-MicroSD-Reader** (z. B. [B0F2DPSQ5R](https://www.amazon.de/dp/B0F2DPSQ5R) — „SPI Reader Micro SD TF“): **ja, prinzipiell geeignet** (CS/SCK/MOSI/MISO/VCC/GND). Achtung:
+
+- ESP32-S3-Logik nur **3,3 V**. Viele billige Module wollen **5 V** an VCC (AMS1117) — dann VCC=5 V ok, aber SPI-Pegel prüfen; ohne Pegelwandler **keine 5 V an GPIO**. Sicherer: Modul ausdrücklich mit 3,3 V betreiben oder eines mit Level-Shifter.
+- Karte: MicroSDHC, **FAT32 oder exFAT**, Partitionstabelle **MBR** (sdcard.org-Formatter).
+- **Nicht** am LoRa-SPI (11–13) anschließen.
+
+**Empfohlene Verdrahtung Mein MUI** — Display-SPI3 **teilen**, eigener CS (wie T-Deck-Idee):
+
+| SD-Modul | ESP32-S3 |
+|----------|----------|
+| GND | GND |
+| VCC | 3V3 *(oder 5 V nur wenn Modul das braucht und Logik 3,3 V bleibt)* |
+| CS | GPIO **41** |
+| SCK | GPIO **21** (wie TFT) |
+| MOSI | GPIO **16** (wie TFT) |
+| MISO | GPIO **4** (wie TFT/Touch) |
+
+`variant.h`:
+
+```cpp
+#define HAS_SDCARD
+#define SDCARD_CS 41
+#define SPI_SCK 21
+#define SPI_MOSI 16
+#define SPI_MISO 4
+#define SDCARD_USER_SPI_BEGIN
+#define SD_SPI_FREQUENCY 10000000U
+```
+
+`platformio.ini` `build_flags` (device-ui braucht das Makro):
+
+```ini
+  -DHAS_SDCARD=1
+```
+
+**Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → auf SD entpacken als `/maps/<style>/…`. Im Home-Screen SD-Icon prüfen; Karte öffnen, bei leeren Tiles auf Zoom ≤ 6 zoomen.
+
+Optional: mit WLAN fehlende Tiles nachladen und auf SD cachen (`.url` im Style-Ordner).
+
 ### Belegte vs. freie GPIOs (Kurz)
 
 | GPIO | Funktion |
@@ -555,7 +598,8 @@ Optional ~100–220 Ω in Reihe. Lautstärke zu gering → NPN/MOSFET + 5 V/
 | 17 / 18 | I2C (MAX17048) |
 | 21 | TFT SCK |
 | 38 | TFT RST |
-| 39 / 41 | frei / optional RXEN bzw. BL |
+| 39 | frei / optional LoRa-RXEN |
+| 41 | frei / **SD CS** (empfohlen) / optional BL |
 | 47 / 48 | **GPS UART** |
 | 19 / 20 | USB — nicht nutzen |
 | 26–32 | intern Flash (S3) — nicht herausgeführt |
