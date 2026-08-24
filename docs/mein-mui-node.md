@@ -566,19 +566,20 @@ MUI lädt Kacheln von der SD unter `/maps/<style>/<z>/<x>/<y>.png` (256×256, id
 #define SPI_SCK 21
 #define SPI_MOSI 16
 #define SPI_MISO 4
-#define SDCARD_USER_SPI_BEGIN
-#define SD_SPI_FREQUENCY 10000000U
+#define SDCARD_USE_SPI1          // ESP32-S3: HSPI/SPI3 = Display-Bus, nicht LoRa-SPI2
+#define SDCARD_USER_SPI_BEGIN    // device-ui SdFat
+#define SD_SPI_FREQUENCY 4000000U  // Bring-up langsam; später 10–20 MHz ok
 ```
 
-`platformio.ini` `build_flags` (device-ui braucht das Makro):
+Wichtig: **ohne** `SDCARD_USE_SPI1` nutzt Firmware-`setupSDCard()` den Default-`SPI` (**SPI2** = LoRa). Dann erscheint oft `No SD_MMC card detected` — die Meldung meint „SD-Init fehlgeschlagen“, **nicht** echtes SDMMC. Mit `SDCARD_USE_SPI1` läuft die Karte auf dem Display-SPI (21/16/4).
+
+`platformio.ini` `build_flags`:
 
 ```ini
   -DHAS_SDCARD=1
 ```
 
-**Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → auf SD entpacken als `/maps/<style>/…`. Im Home-Screen SD-Icon prüfen; Karte öffnen, bei leeren Tiles auf Zoom ≤ 6 zoomen.
-
-Optional: mit WLAN fehlende Tiles nachladen und auf SD cachen (`.url` im Style-Ordner).
+Nach Rebuild im UART: statt `No SD_MMC…` eher `SD Card Size: … MB` / später DeviceUI `SdCard init successful`. Sonst Verdrahtung prüfen (CS=41, CLK=21, MOSI=16, MISO=4, 3V3/GND, Karte MBR FAT32/exFAT).
 
 ### Belegte vs. freie GPIOs (Kurz)
 
