@@ -14,6 +14,9 @@ fs::FS &SDFs = PortduinoFS;
 static SPIClass SPI1(HSPI);
 static SPIClass &SDHandler = SPI1;
 #elif defined(SDCARD_USE_SOFT_SPI)
+#if !defined(SPI_DRIVER_SELECT) || (SPI_DRIVER_SELECT != 2)
+#error "SDCARD_USE_SOFT_SPI requires -DSPI_DRIVER_SELECT=2 in platformio build_flags (SdFat SoftSpiDriver)"
+#endif
 static SoftSpiDriver<SPI_MISO, SPI_MOSI, SPI_SCK> SDHandler;
 #else
 static SPIClass &SDHandler = SPI;

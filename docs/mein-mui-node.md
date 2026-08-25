@@ -593,7 +593,22 @@ No SD_MMC card detected
 addApbChangeCallback(): duplicate …
 ```
 
-danach oft automatischer Neustart. Ursache: Firmware-Arduino-SD auf SPI3 (Display). Fix: Soft-SPI wie oben (Pins umverdrahten + `SDCARD_USE_SOFT_SPI`, **kein** `SDCARD_USE_SPI1`). Buzzer bleibt GPIO **3** (nicht 45).
+danach oft automatischer Neustart. Ursache: Firmware-Arduino-SD auf SPI3 (Display). Fix: Soft-SPI wie oben (Pins umverdrahten + `SDCARD_USE_SOFT_SPI` + `SPI_DRIVER_SELECT=2`, **kein** `SDCARD_USE_SPI1`). Buzzer bleibt GPIO **3** (nicht 45).
+
+**Build `SoftSpiDriver does not name a type` / `HAS_SDCARD` redefined:**
+
+1. In `variant.h` Zeile mit `#define HAS_SDCARD` **löschen** (nur Pins + `SDCARD_USE_SOFT_SPI` behalten).
+2. In `platformio.ini` exakt:
+   ```ini
+     -DHAS_SDCARD
+     -DSDCARD_USE_SOFT_SPI
+     -DSPI_DRIVER_SELECT=2
+   ```
+3. Clean-Rebuild (SdFat-Cache sonst noch mit SELECT=0):
+   ```
+   platformio run -t clean -e mein-mui-node
+   platformio run --target upload --environment mein-mui-node
+   ```
 
 **Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → `/maps/<style>/…`. Bei leeren Tiles Zoom ≤ 6.
 
