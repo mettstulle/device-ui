@@ -560,10 +560,9 @@ Auf dem ESP32-S3 ist SPI2 = LoRa und SPI3 = Display/Touch. `SDCARD_USE_SPI1` (HS
 | MOSI | GPIO **40** |
 | MISO | GPIO **42** |
 
-`variant.h` (so, **ohne** `SDCARD_USE_SPI1` / ohne Display-Pins 21/16/4):
+`variant.h` — Pins + Soft-SPI (**kein** `#define HAS_SDCARD` hier, sonst Warnung „redefined“ mit `platformio.ini`):
 
 ```cpp
-#define HAS_SDCARD
 #define SDCARD_CS 41
 #define SPI_SCK 39
 #define SPI_MOSI 40
@@ -572,13 +571,17 @@ Auf dem ESP32-S3 ist SPI2 = LoRa und SPI3 = Display/Touch. `SDCARD_USE_SPI1` (HS
 #define SD_SPI_FREQUENCY 1000000U
 ```
 
-Firmware-`setupSDCard()` wird mit Soft-SPI übersprungen (kein frühes `No SD_MMC…`); die Erkennung läuft über DeviceUI/SdFat. Im Home-Screen SD-Icon prüfen / UART `SdCard init successful`.
-
-`platformio.ini`:
+`platformio.ini` `build_flags` (wie Elecrow Crowpanel Soft-SPI):
 
 ```ini
-  -DHAS_SDCARD=1
+  -DHAS_SDCARD
+  -DSDCARD_USE_SOFT_SPI
+  -DSPI_DRIVER_SELECT=2
 ```
+
+`SPI_DRIVER_SELECT=2` ist **pflicht** für SdFat `SoftSpiDriver` — ohne das scheitert der Build an `SdCard.cpp` (`Error 1`). Nicht zusätzlich `#define HAS_SDCARD` in `variant.h` setzen (nur `-DHAS_SDCARD` in den Flags).
+
+Firmware-`setupSDCard()` wird mit Soft-SPI übersprungen (kein frühes `No SD_MMC…`); die Erkennung läuft über DeviceUI/SdFat. Im Home-Screen SD-Icon prüfen / UART `SdCard init successful`.
 
 **Diese UART-Fehler = noch falsche SD-Config (Display-SPI / `SDCARD_USE_SPI1`):**
 
