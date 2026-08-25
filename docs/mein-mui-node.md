@@ -547,43 +547,54 @@ MUI lädt Kacheln von der SD unter `/maps/<style>/<z>/<x>/<y>.png` (256×256, id
 - Karte: MicroSDHC, **FAT32 oder exFAT**, Partitionstabelle **MBR** (sdcard.org-Formatter).
 - **Nicht** am LoRa-SPI (11–13) anschließen.
 
-**Empfohlene Verdrahtung Mein MUI** — Display-SPI3 **teilen**, eigener CS (wie T-Deck-Idee):
+**Empfohlene Verdrahtung Mein MUI** — **eigene Soft-SPI-Pins** (nicht Display teilen):
+
+Auf dem ESP32-S3 ist SPI2 = LoRa und SPI3 = Display/Touch. `SDCARD_USE_SPI1` (HSPI=SPI3) **kollidiert** mit dem TFT → `GO_IDLE_STATE failed`, `duplicate addApbChangeCallback`, oft Reboot. Deshalb SD per **Bitbang (Soft-SPI)** auf freien GPIOs.
 
 | SD-Modul | ESP32-S3 |
 |----------|----------|
 | GND | GND |
-| VCC | 3V3 *(oder 5 V nur wenn Modul das braucht und Logik 3,3 V bleibt)* |
+| VCC | 3V3 |
 | CS | GPIO **41** |
-| SCK | GPIO **21** (wie TFT) |
-| MOSI | GPIO **16** (wie TFT) |
-| MISO | GPIO **4** (wie TFT/Touch) |
+| CLK (SCK) | GPIO **39** |
+| MOSI | GPIO **40** |
+| MISO | GPIO **42** |
 
-`variant.h`:
+`variant.h` (so, **ohne** `SDCARD_USE_SPI1` / ohne Display-Pins 21/16/4):
 
 ```cpp
 #define HAS_SDCARD
 #define SDCARD_CS 41
-#define SPI_SCK 21
-#define SPI_MOSI 16
-#define SPI_MISO 4
-#define SDCARD_USE_SPI1          // ESP32-S3: HSPI/SPI3 = Display-Bus, nicht LoRa-SPI2
-#define SDCARD_USER_SPI_BEGIN    // device-ui SdFat
-#define SD_SPI_FREQUENCY 4000000U  // Bring-up langsam; später 10–20 MHz ok
+#define SPI_SCK 39
+#define SPI_MOSI 40
+#define SPI_MISO 42
+#define SDCARD_USE_SOFT_SPI
+#define SD_SPI_FREQUENCY 1000000U
 ```
 
-Wichtig: **ohne** `SDCARD_USE_SPI1` nutzt Firmware-`setupSDCard()` den Default-`SPI` (**SPI2** = LoRa). Dann erscheint oft `No SD_MMC card detected` — die Meldung meint „SD-Init fehlgeschlagen“, **nicht** echtes SDMMC. Mit `SDCARD_USE_SPI1` läuft die Karte auf dem Display-SPI (21/16/4).
+Firmware-`setupSDCard()` wird mit Soft-SPI übersprungen (kein frühes `No SD_MMC…`); die Erkennung läuft über DeviceUI/SdFat. Im Home-Screen SD-Icon prüfen / UART `SdCard init successful`.
 
-`platformio.ini` `build_flags`:
+`platformio.ini`:
 
 ```ini
   -DHAS_SDCARD=1
 ```
 
-Nach Rebuild im UART: statt `No SD_MMC…` eher `SD Card Size: … MB` / später DeviceUI `SdCard init successful`. Sonst Verdrahtung prüfen (CS=41, CLK=21, MOSI=16, MISO=4, 3V3/GND, Karte MBR FAT32/exFAT).
+**Diese UART-Fehler = noch falsche SD-Config (Display-SPI / `SDCARD_USE_SPI1`):**
 
-**Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → auf SD entpacken als `/maps/<style>/…`. Im Home-Screen SD-Icon prüfen; Karte öffnen, bei leeren Tiles auf Zoom ≤ 6 zoomen.
+```
+sdCommand(): token error … 0xa0
+ff_sd_initialize(): GO_IDLE_STATE failed
+sdcard_mount(): f_mount failed: (3)
+No SD_MMC card detected
+addApbChangeCallback(): duplicate …
+```
 
-Optional: mit WLAN fehlende Tiles nachladen und auf SD cachen (`.url` im Style-Ordner).
+danach oft automatischer Neustart. Ursache: Firmware-Arduino-SD auf SPI3 (Display). Fix: Soft-SPI wie oben (Pins umverdrahten + `SDCARD_USE_SOFT_SPI`, **kein** `SDCARD_USE_SPI1`). Buzzer bleibt GPIO **3** (nicht 45).
+
+**Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → `/maps/<style>/…`. Bei leeren Tiles Zoom ≤ 6.
+
+Optional WLAN-Cache via `.url` im Style-Ordner.
 
 ### Belegte vs. freie GPIOs (Kurz)
 
@@ -603,8 +614,10 @@ Optional: mit WLAN fehlende Tiles nachladen und auf SD cachen (`.url` im Style-O
 | 17 / 18 | I2C (MAX17048) |
 | 21 | TFT SCK |
 | 38 | TFT RST |
-| 39 | frei / optional LoRa-RXEN |
-| 41 | frei / **SD CS** (empfohlen) / optional BL |
+| 39 | **SD Soft-SPI SCK** |
+| 40 | **SD Soft-SPI MOSI** |
+| 41 | **SD CS** |
+| 42 | **SD Soft-SPI MISO** |
 | 47 / 48 | **GPS UART** |
 | 19 / 20 | USB — nicht nutzen |
 | 26–32 | intern Flash (S3) — nicht herausgeführt |
