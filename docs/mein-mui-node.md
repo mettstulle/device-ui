@@ -581,6 +581,10 @@ Wichtig: **ohne** `SDCARD_USE_SPI1` nutzt Firmware-`setupSDCard()` den Default-`
 
 Nach Rebuild im UART: statt `No SD_MMC…` eher `SD Card Size: … MB` / später DeviceUI `SdCard init successful`. Sonst Verdrahtung prüfen (CS=41, CLK=21, MOSI=16, MISO=4, 3V3/GND, Karte MBR FAT32/exFAT).
 
+**Kacheln aufspielen:** Starter-Zips aus `device-ui/maps/` oder [Oxed Map Tile Downloader](https://download.tiles.coalition.space/) → auf SD entpacken als `/maps/<style>/…`. Im Home-Screen SD-Icon prüfen; Karte öffnen, bei leeren Tiles auf Zoom ≤ 6 zoomen.
+
+Optional: mit WLAN fehlende Tiles nachladen und auf SD cachen (`.url` im Style-Ordner).
+
 ### Belegte vs. freie GPIOs (Kurz)
 
 | GPIO | Funktion |
