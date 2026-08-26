@@ -7264,9 +7264,24 @@ bool TFTView_320x240::updateSDCard(void)
         ILOG_DEBUG("SdCard init successful, card type: %d", sdCard->cardType());
         ISdCard::CardType cardType = sdCard->cardType();
         ISdCard::FatType fatType = sdCard->fatType();
+        uint32_t totalSpaceGB = (sdCard->cardSize() + 500000000ULL) / (1000ULL * 1000ULL * 1000ULL);
+#if defined(SDCARD_USE_SOFT_SPI)
+        // Skip usedBytes(): Soft-SPI + freeClusterCount() can block for many
+        // seconds and trigger the loopTask watchdog (reboot after "SdCard init").
+        sprintf(buf, _("%s: %d GB (%s)"),
+                cardType == ISdCard::eMMC    ? "MMC"
+                : cardType == ISdCard::eSD   ? "SDSC"
+                : cardType == ISdCard::eSDHC ? "SDHC"
+                : cardType == ISdCard::eSDXC ? "SDXC"
+                                             : "UNKN",
+                totalSpaceGB,
+                fatType == ISdCard::eExFat   ? "exFAT"
+                : fatType == ISdCard::eFat32 ? "FAT32"
+                : fatType == ISdCard::eFat16 ? "FAT16"
+                                             : "???");
+#else
         uint32_t usedSpace = sdCard->usedBytes() / (1024 * 1024);
         uint32_t totalSpace = sdCard->cardSize() / (1024 * 1024);
-        uint32_t totalSpaceGB = (sdCard->cardSize() + 500000000ULL) / (1000ULL * 1000ULL * 1000ULL);
 
         sprintf(buf, _("%s: %d GB (%s)\nUsed: %0.2f GB (%d%%)"),
                 cardType == ISdCard::eMMC    ? "MMC"
@@ -7281,6 +7296,7 @@ bool TFTView_320x240::updateSDCard(void)
                                              : "???",
                 float(sdCard->usedBytes()) / 1024.0f / 1024.0f / 1024.0f,
                 totalSpace ? ((usedSpace * 100) + totalSpace / 2) / totalSpace : 0);
+#endif
         Themes::recolorButton(objects.home_sd_card_button, true);
         Themes::recolorText(objects.home_sd_card_label, true);
         cardDetected = true;

@@ -261,12 +261,22 @@ ISdCard::ErrorType SdFsCard::errorType(void)
 
 uint64_t SdFsCard::usedBytes(void)
 {
+#if defined(SDCARD_USE_SOFT_SPI)
+    // freeClusterCount() scans the whole FAT; Soft-SPI makes that take tens of
+    // seconds on SDHC/SDXC and trips the ESP task WDT right after mount.
+    return 0;
+#else
     return cardSize() - freeBytes();
+#endif
 }
 
 uint64_t SdFsCard::freeBytes(void)
 {
+#if defined(SDCARD_USE_SOFT_SPI)
+    return 0;
+#else
     return uint64_t(SDFs.freeClusterCount()) * uint64_t(SDFs.bytesPerCluster());
+#endif
 }
 
 uint64_t SdFsCard::cardSize(void)

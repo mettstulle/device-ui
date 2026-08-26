@@ -583,6 +583,8 @@ Auf dem ESP32-S3 ist SPI2 = LoRa und SPI3 = Display/Touch. `SDCARD_USE_SPI1` (HS
 
 Firmware-`setupSDCard()` wird mit Soft-SPI übersprungen (kein frühes `No SD_MMC…`); die Erkennung läuft über DeviceUI/SdFat. Im Home-Screen SD-Icon prüfen / UART `SdCard init successful`.
 
+**Nach `SdCard init successful` → `task_wdt` / Reboot:** Die UI hat früher `usedBytes()` → `freeClusterCount()` aufgerufen (komplette FAT-Scan). Mit Soft-SPI dauert das auf SDHC oft zu lange → Watchdog. Device-UI skippt den Used-Scan bei Soft-SPI (Anzeige nur Typ/Größe). ZIP/Branch aktualisieren und neu flashen. Kacheln erst sparsam testen (kleiner Style/Zoom); große Tile-Bäume sind per Soft-SPI langsam.
+
 **Diese UART-Fehler = noch falsche SD-Config (Display-SPI / `SDCARD_USE_SPI1`):**
 
 ```
